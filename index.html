@@ -159,6 +159,20 @@
       background: #ecfdf5;
     }
 
+    .debug-log {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f8fafc;
+      color: var(--muted);
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
     .pin-grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -512,6 +526,7 @@
         </div>
         <button class="btn btn-primary" id="loginBtn" type="submit">Anmelden</button>
         <button class="btn btn-secondary" id="registerBtn" type="button">Konto erstellen</button>
+        <button class="btn btn-secondary hidden" id="forcePinBtn" type="button">PIN jetzt vergeben</button>
         <div class="auth-switch">
           <span>Passwort vergessen?</span>
           <button class="link-btn" id="resetPasswordBtn" type="button">Reset-Mail senden</button>
@@ -535,6 +550,7 @@
       </form>
 
       <div class="auth-message" id="authMessage"></div>
+      <div class="debug-log" id="debugLog">Status: App startet...</div>
     </div>
   </section>
 
@@ -691,6 +707,8 @@
     const pinSubmitBtn = document.getElementById("pinSubmitBtn");
     const userBar = document.getElementById("userBar");
     const fileProtocolWarning = document.getElementById("fileProtocolWarning");
+    const debugLog = document.getElementById("debugLog");
+    const forcePinBtn = document.getElementById("forcePinBtn");
 
     let entries = [];
     let currentUser = null;
@@ -698,6 +716,11 @@
     let pinSetupMode = false;
     let registrationPinSetupActive = false;
     let unsubscribeEntries = null;
+
+    function debug(message) {
+      const time = new Date().toLocaleTimeString("de-DE");
+      debugLog.textContent = `[${time}] ${message}\n${debugLog.textContent}`.slice(0, 1600);
+    }
 
     function toIsoDate(date) {
       const year = date.getFullYear();
@@ -745,15 +768,18 @@
     }
 
     function showLogin(message = "", type = "") {
+      debug("zeige Login");
       appRoot.classList.add("hidden");
       authScreen.classList.remove("hidden");
       loginForm.classList.remove("hidden");
       pinForm.classList.add("hidden");
+      forcePinBtn.classList.toggle("hidden", !currentUser);
       fileProtocolWarning.classList.toggle("visible", window.location.protocol === "file:");
       setAuthMessage(message, type);
     }
 
     function showPinSetup(message = "Bitte vergib eine PIN mit 4 bis 6 Ziffern.") {
+      debug("zeige PIN-Vergabe");
       pinSetupMode = true;
       appRoot.classList.add("hidden");
       authScreen.classList.remove("hidden");
@@ -769,6 +795,7 @@
     }
 
     function showPinUnlock(message = "Bitte PIN eingeben.") {
+      debug("zeige PIN-Abfrage");
       pinSetupMode = false;
       appRoot.classList.add("hidden");
       authScreen.classList.remove("hidden");
@@ -784,6 +811,7 @@
     }
 
     function showApp() {
+      debug("zeige App");
       authScreen.classList.add("hidden");
       appRoot.classList.remove("hidden");
       userBar.textContent = currentUser.email || "Angemeldet";
@@ -1056,9 +1084,11 @@
     }
 
     async function loadSecurityState(user) {
+      debug(`lade PIN-Status fuer ${user.email || user.uid}`);
       currentUser = user;
       const security = await securityDoc().get();
       currentPinHash = security.exists ? security.get("pinHash") || "" : "";
+      debug(currentPinHash ? "PIN existiert" : "keine PIN gefunden");
       await migrateLocalEntries();
       subscribeEntries();
 
@@ -1083,8 +1113,10 @@
         return;
       }
       setAuthMessage("Anmeldung laeuft...");
+      debug(`Login startet: ${email}`);
       const credential = await auth.signInWithEmailAndPassword(email, password);
       setAuthMessage("Angemeldet. PIN wird geladen...");
+      debug(`Login erfolgreich: ${credential.user?.uid || "ohne uid"}`);
       return credential;
     }
 
@@ -1096,9 +1128,12 @@
         return;
       }
       setAuthMessage("Konto wird erstellt...");
+      debug(`Registrierung startet: ${email}`);
       const credential = await auth.createUserWithEmailAndPassword(email, password);
       currentUser = credential.user;
       registrationPinSetupActive = true;
+      debug(`Registrierung erfolgreich: ${credential.user?.uid || "ohne uid"}`);
+      forcePinBtn.classList.remove("hidden");
       showPinSetup("Konto erstellt. Bitte vergib jetzt deine App-PIN.");
       return credential;
     }
@@ -1127,12 +1162,14 @@
           return;
         }
         setAuthMessage("PIN wird gespeichert...");
+        debug("PIN speichern startet");
         await securityDoc().set({
           pinHash: candidateHash,
           pinUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
         currentPinHash = candidateHash;
         registrationPinSetupActive = false;
+        debug("PIN gespeichert");
         await migrateLocalEntries();
         subscribeEntries();
         sessionStorage.setItem(pinSessionKey(), "1");
@@ -1150,6 +1187,7 @@
 
     function handleAuthError(error) {
       const code = error.code || "";
+      debug(`FEHLER ${code || "ohne code"}: ${error.message || String(error)}`);
       if (code === "auth/unauthorized-domain") {
         setAuthMessage("Diese Adresse ist in Firebase Auth nicht freigeschaltet. Oeffne die App ueber GitHub Pages oder localhost, nicht als file:// Datei.", "error");
         return;
@@ -1245,6 +1283,15 @@
       }
     });
 
+    forcePinBtn.addEventListener("click", () => {
+      if (!currentUser) {
+        setAuthMessage("Noch kein Benutzer angemeldet.", "error");
+        return;
+      }
+      registrationPinSetupActive = true;
+      showPinSetup("Bitte vergib jetzt deine App-PIN.");
+    });
+
     pinForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       try {
@@ -1269,6 +1316,7 @@
     document.getElementById("pinLogoutBtn").addEventListener("click", () => auth.signOut());
 
     auth.onAuthStateChanged(async (user) => {
+      debug(user ? `Auth-State: angemeldet ${user.email || user.uid}` : "Auth-State: abgemeldet");
       if (unsubscribeEntries) {
         unsubscribeEntries();
         unsubscribeEntries = null;
@@ -1285,6 +1333,7 @@
       }
 
       if (registrationPinSetupActive && currentUser?.uid === user.uid) {
+        debug("Auth-State ignoriert, PIN-Vergabe nach Registrierung ist aktiv");
         return;
       }
 
