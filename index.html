@@ -83,6 +83,90 @@
       gap: 10px;
     }
 
+    .hidden {
+      display: none !important;
+    }
+
+    .login-screen {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .auth-card {
+      width: min(100%, 420px);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    .auth-card h1 {
+      margin-bottom: 8px;
+      font-size: 2rem;
+    }
+
+    .auth-card p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .auth-form {
+      display: grid;
+      gap: 12px;
+    }
+
+    .auth-switch {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .link-btn {
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--primary);
+      cursor: pointer;
+      font-weight: 750;
+    }
+
+    .auth-message {
+      min-height: 20px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.35;
+    }
+
+    .auth-message.error {
+      color: var(--danger);
+    }
+
+    .auth-message.success {
+      color: var(--success);
+    }
+
+    .pin-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .userbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
     .layout {
       display: grid;
       grid-template-columns: minmax(300px, 410px) minmax(0, 1fr);
@@ -403,14 +487,59 @@
   </style>
 </head>
 <body>
-  <main class="app">
+  <section class="login-screen" id="authScreen">
+    <div class="auth-card">
+      <h1>Zeiterfassung</h1>
+      <p id="authIntro">Melde dich mit deinem Konto an. Deine Zeiten werden danach in der Cloud gespeichert und sind auch auf dem iPhone verfuegbar.</p>
+
+      <form class="auth-form" id="loginForm">
+        <div class="field">
+          <label for="authEmail">E-Mail</label>
+          <input id="authEmail" type="email" autocomplete="email" required />
+        </div>
+        <div class="field">
+          <label for="authPassword">Passwort</label>
+          <input id="authPassword" type="password" autocomplete="current-password" minlength="6" required />
+        </div>
+        <button class="btn btn-primary" id="loginBtn" type="submit">Anmelden</button>
+        <button class="btn btn-secondary" id="registerBtn" type="button">Konto erstellen</button>
+        <div class="auth-switch">
+          <span>Passwort vergessen?</span>
+          <button class="link-btn" id="resetPasswordBtn" type="button">Reset-Mail senden</button>
+        </div>
+      </form>
+
+      <form class="auth-form hidden" id="pinForm">
+        <div class="field">
+          <label for="pinInput" id="pinLabel">PIN</label>
+          <input id="pinInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" />
+        </div>
+        <div class="field hidden" id="pinConfirmField">
+          <label for="pinConfirmInput">PIN wiederholen</label>
+          <input id="pinConfirmInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" />
+        </div>
+        <button class="btn btn-primary" id="pinSubmitBtn" type="submit">Entsperren</button>
+        <div class="auth-switch">
+          <button class="link-btn" id="forgotPinBtn" type="button">Passwort vergessen</button>
+          <button class="link-btn" id="pinLogoutBtn" type="button">Abmelden</button>
+        </div>
+      </form>
+
+      <div class="auth-message" id="authMessage"></div>
+    </div>
+  </section>
+
+  <main class="app hidden" id="appRoot">
     <header>
       <div>
         <h1>Zeiterfassung</h1>
         <p class="subtitle">Arbeitszeiten eintragen, Pausenabzug berechnen und als Excel-kompatible CSV exportieren.</p>
       </div>
       <div class="toolbar">
+        <div class="userbar" id="userBar"></div>
         <button class="btn btn-secondary" id="exportBtn" type="button" title="CSV herunterladen">Export CSV</button>
+        <button class="btn btn-secondary" id="lockBtn" type="button" title="App sperren">Sperren</button>
+        <button class="btn btn-secondary" id="logoutBtn" type="button" title="Abmelden">Abmelden</button>
         <button class="btn btn-danger" id="clearBtn" type="button" title="Alle Einträge löschen">Alles löschen</button>
       </div>
     </header>
@@ -486,7 +615,23 @@
     </section>
   </main>
 
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBBMU-KPmSzu0F9iFGV_AF049Aivtnx0S4",
+      authDomain: "arbeitsapp-3364c.firebaseapp.com",
+      projectId: "arbeitsapp-3364c",
+      storageBucket: "arbeitsapp-3364c.firebasestorage.app",
+      messagingSenderId: "202291981896",
+      appId: "1:202291981896:web:0294b473eaff98a454b27d",
+      measurementId: "G-7ZJCVC7TRZ"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
     const STORAGE_KEY = "zeiterfassung.entries.v1";
     const formatter = new Intl.DateTimeFormat("de-DE", {
       weekday: "long",
@@ -514,8 +659,23 @@
     const monthTotal = document.getElementById("monthTotal");
     const formTitle = document.getElementById("formTitle");
     const saveBtn = document.getElementById("saveBtn");
+    const authScreen = document.getElementById("authScreen");
+    const appRoot = document.getElementById("appRoot");
+    const loginForm = document.getElementById("loginForm");
+    const pinForm = document.getElementById("pinForm");
+    const authMessage = document.getElementById("authMessage");
+    const pinInput = document.getElementById("pinInput");
+    const pinConfirmInput = document.getElementById("pinConfirmInput");
+    const pinConfirmField = document.getElementById("pinConfirmField");
+    const pinLabel = document.getElementById("pinLabel");
+    const pinSubmitBtn = document.getElementById("pinSubmitBtn");
+    const userBar = document.getElementById("userBar");
 
-    let entries = loadEntries();
+    let entries = [];
+    let currentUser = null;
+    let currentPinHash = "";
+    let pinSetupMode = false;
+    let unsubscribeEntries = null;
 
     function toIsoDate(date) {
       const year = date.getFullYear();
@@ -533,6 +693,80 @@
         return window.crypto.randomUUID();
       }
       return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    function setAuthMessage(message, type = "") {
+      authMessage.textContent = message || "";
+      authMessage.className = `auth-message ${type}`.trim();
+    }
+
+    function entriesCollection() {
+      return db.collection(`users/${currentUser.uid}/timeEntries`);
+    }
+
+    function securityDoc() {
+      return db.doc(`users/${currentUser.uid}/settings/security`);
+    }
+
+    async function hashPin(pin) {
+      const data = new TextEncoder().encode(`${currentUser.uid}:${pin}`);
+      const digest = await crypto.subtle.digest("SHA-256", data);
+      return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    }
+
+    function validatePin(pin) {
+      return /^\d{4,6}$/.test(pin);
+    }
+
+    function pinSessionKey() {
+      return `zeiterfassung.pinUnlocked.${currentUser.uid}`;
+    }
+
+    function showLogin(message = "", type = "") {
+      appRoot.classList.add("hidden");
+      authScreen.classList.remove("hidden");
+      loginForm.classList.remove("hidden");
+      pinForm.classList.add("hidden");
+      setAuthMessage(message, type);
+    }
+
+    function showPinSetup(message = "Bitte vergib eine PIN mit 4 bis 6 Ziffern.") {
+      pinSetupMode = true;
+      appRoot.classList.add("hidden");
+      authScreen.classList.remove("hidden");
+      loginForm.classList.add("hidden");
+      pinForm.classList.remove("hidden");
+      pinConfirmField.classList.remove("hidden");
+      pinLabel.textContent = "Neue PIN";
+      pinSubmitBtn.textContent = "PIN speichern";
+      pinInput.value = "";
+      pinConfirmInput.value = "";
+      setAuthMessage(message);
+      pinInput.focus();
+    }
+
+    function showPinUnlock(message = "Bitte PIN eingeben.") {
+      pinSetupMode = false;
+      appRoot.classList.add("hidden");
+      authScreen.classList.remove("hidden");
+      loginForm.classList.add("hidden");
+      pinForm.classList.remove("hidden");
+      pinConfirmField.classList.add("hidden");
+      pinLabel.textContent = "PIN";
+      pinSubmitBtn.textContent = "Entsperren";
+      pinInput.value = "";
+      pinConfirmInput.value = "";
+      setAuthMessage(message);
+      pinInput.focus();
+    }
+
+    function showApp() {
+      authScreen.classList.add("hidden");
+      appRoot.classList.remove("hidden");
+      userBar.textContent = currentUser.email || "Angemeldet";
+      setAuthMessage("");
+      resetForm();
+      render();
     }
 
     function parseTime(value) {
@@ -609,6 +843,12 @@
       return entry.complete !== false;
     }
 
+    function sortValue(entry) {
+      if (typeof entry.createdAt === "string") return entry.createdAt;
+      if (entry.createdAt && typeof entry.createdAt.toMillis === "function") return String(entry.createdAt.toMillis());
+      return "";
+    }
+
     function showError(message) {
       errorBox.textContent = message || "";
       errorBox.classList.toggle("visible", Boolean(message));
@@ -631,7 +871,7 @@
       }
     }
 
-    function loadEntries() {
+    function loadLocalEntries() {
       try {
         return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
       } catch {
@@ -639,8 +879,34 @@
       }
     }
 
-    function saveEntries() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    async function migrateLocalEntries() {
+      const localEntries = loadLocalEntries();
+      const marker = `zeiterfassung.migrated.${currentUser.uid}`;
+      if (!localEntries.length || localStorage.getItem(marker)) return;
+
+      const batch = db.batch();
+      localEntries.forEach((entry) => {
+        const id = entry.id || createId();
+        batch.set(entriesCollection().doc(id), {
+          ...entry,
+          id,
+          complete: entry.complete !== false,
+          migratedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      });
+      await batch.commit();
+      localStorage.setItem(marker, "1");
+    }
+
+    function subscribeEntries() {
+      if (unsubscribeEntries) unsubscribeEntries();
+      unsubscribeEntries = entriesCollection().onSnapshot((snapshot) => {
+        entries = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        render();
+      }, (error) => {
+        showError(error.message || "Fehler beim Laden der Cloud-Daten.");
+      });
     }
 
     function resetForm() {
@@ -654,12 +920,12 @@
     }
 
     function render() {
-      const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+      const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date) || sortValue(b).localeCompare(sortValue(a)));
       entryCount.textContent = entries.length === 1 ? "1 Eintrag gespeichert" : `${entries.length} Einträge gespeichert`;
 
       const currentMonth = isoToday().slice(0, 7);
       const total = entries
-        .filter((entry) => entry.date.startsWith(currentMonth))
+        .filter((entry) => entry.date.startsWith(currentMonth) && isComplete(entry))
         .reduce((sum, entry) => sum + entry.net, 0);
       monthTotal.textContent = `Monat: ${formatNumber(round2(total))} h`;
 
@@ -722,13 +988,11 @@
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    function deleteEntry(id) {
+    async function deleteEntry(id) {
       const entry = entries.find((item) => item.id === id);
       if (!entry) return;
       if (!confirm(`Eintrag vom ${formatDate(entry.date)} löschen?`)) return;
-      entries = entries.filter((item) => item.id !== id);
-      saveEntries();
-      render();
+      await entriesCollection().doc(id).delete();
       if (fields.id.value === id) resetForm();
     }
 
@@ -768,8 +1032,101 @@
       URL.revokeObjectURL(url);
     }
 
-    form.addEventListener("submit", (event) => {
+    async function loadSecurityState(user) {
+      currentUser = user;
+      const security = await securityDoc().get();
+      currentPinHash = security.exists ? security.get("pinHash") || "" : "";
+      await migrateLocalEntries();
+      subscribeEntries();
+
+      const resetEmail = sessionStorage.getItem("zeiterfassung.resetPinAfterLogin");
+      if (!currentPinHash || resetEmail === user.email) {
+        sessionStorage.removeItem("zeiterfassung.resetPinAfterLogin");
+        showPinSetup();
+        return;
+      }
+      if (sessionStorage.getItem(pinSessionKey()) === "1") {
+        showApp();
+        return;
+      }
+      showPinUnlock();
+    }
+
+    async function loginWithEmail() {
+      const email = document.getElementById("authEmail").value.trim();
+      const password = document.getElementById("authPassword").value;
+      if (!email || !password) {
+        setAuthMessage("Bitte E-Mail und Passwort eingeben.", "error");
+        return;
+      }
+      setAuthMessage("Anmeldung laeuft...");
+      await auth.signInWithEmailAndPassword(email, password);
+    }
+
+    async function registerWithEmail() {
+      const email = document.getElementById("authEmail").value.trim();
+      const password = document.getElementById("authPassword").value;
+      if (!email || password.length < 6) {
+        setAuthMessage("Bitte E-Mail und ein Passwort mit mindestens 6 Zeichen eingeben.", "error");
+        return;
+      }
+      setAuthMessage("Konto wird erstellt...");
+      await auth.createUserWithEmailAndPassword(email, password);
+    }
+
+    async function sendPasswordReset(email) {
+      if (!email) {
+        setAuthMessage("Bitte zuerst die E-Mail-Adresse eingeben.", "error");
+        return;
+      }
+      await auth.sendPasswordResetEmail(email);
+      setAuthMessage("Reset-Mail wurde gesendet. Bitte Postfach pruefen.", "success");
+    }
+
+    async function handlePinSubmit() {
+      const pin = pinInput.value.trim();
+      if (!validatePin(pin)) {
+        setAuthMessage("Die PIN muss 4 bis 6 Ziffern haben.", "error");
+        return;
+      }
+
+      const candidateHash = await hashPin(pin);
+      if (pinSetupMode) {
+        const confirmPin = pinConfirmInput.value.trim();
+        if (pin !== confirmPin) {
+          setAuthMessage("Die beiden PINs stimmen nicht ueberein.", "error");
+          return;
+        }
+        await securityDoc().set({
+          pinHash: candidateHash,
+          pinUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        currentPinHash = candidateHash;
+        sessionStorage.setItem(pinSessionKey(), "1");
+        showApp();
+        return;
+      }
+
+      if (candidateHash !== currentPinHash) {
+        setAuthMessage("PIN ist falsch.", "error");
+        return;
+      }
+      sessionStorage.setItem(pinSessionKey(), "1");
+      showApp();
+    }
+
+    function handleAuthError(error) {
+      const code = error.code || "";
+      if (code === "auth/unauthorized-domain") {
+        setAuthMessage("Diese Domain ist in Firebase Auth noch nicht freigeschaltet. Fuege jorgepnt-design.github.io in Firebase unter Authentication > Settings > Authorized domains hinzu.", "error");
+        return;
+      }
+      setAuthMessage(error.message || String(error), "error");
+    }
+
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (!currentUser) return;
       const values = collectValues();
       if (!values.date) {
         showError("Bitte ein Datum auswählen.");
@@ -791,17 +1148,11 @@
           gross: result.gross,
           deduction: result.deduction,
           net: result.net,
-          complete: result.complete
+          complete: result.complete,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        if (existingId) {
-          entries = entries.map((item) => item.id === existingId ? entry : item);
-        } else {
-          entries.push(entry);
-        }
-
-        saveEntries();
-        render();
+        await entriesCollection().doc(entry.id).set(entry, { merge: true });
         resetForm();
       } catch (error) {
         showError(error.message);
@@ -819,18 +1170,91 @@
 
     document.getElementById("resetBtn").addEventListener("click", resetForm);
     document.getElementById("exportBtn").addEventListener("click", exportCsv);
-    document.getElementById("clearBtn").addEventListener("click", () => {
+    document.getElementById("lockBtn").addEventListener("click", () => {
+      sessionStorage.removeItem(pinSessionKey());
+      showPinUnlock("App gesperrt. Bitte PIN eingeben.");
+    });
+    document.getElementById("logoutBtn").addEventListener("click", () => auth.signOut());
+    document.getElementById("clearBtn").addEventListener("click", async () => {
       if (!entries.length) return;
       if (!confirm("Alle Zeiterfassungs-Einträge löschen?")) return;
-      entries = [];
-      saveEntries();
-      render();
+      const batch = db.batch();
+      entries.forEach((entry) => batch.delete(entriesCollection().doc(entry.id)));
+      await batch.commit();
       resetForm();
     });
 
     document.getElementById("todayLabel").textContent = formatDate(isoToday());
-    resetForm();
-    render();
+
+    loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await loginWithEmail();
+      } catch (error) {
+        handleAuthError(error);
+      }
+    });
+
+    document.getElementById("registerBtn").addEventListener("click", async () => {
+      try {
+        await registerWithEmail();
+      } catch (error) {
+        handleAuthError(error);
+      }
+    });
+
+    document.getElementById("resetPasswordBtn").addEventListener("click", async () => {
+      try {
+        await sendPasswordReset(document.getElementById("authEmail").value.trim());
+      } catch (error) {
+        handleAuthError(error);
+      }
+    });
+
+    pinForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await handlePinSubmit();
+      } catch (error) {
+        handleAuthError(error);
+      }
+    });
+
+    document.getElementById("forgotPinBtn").addEventListener("click", async () => {
+      if (!currentUser?.email) return;
+      try {
+        sessionStorage.setItem("zeiterfassung.resetPinAfterLogin", currentUser.email);
+        await auth.sendPasswordResetEmail(currentUser.email);
+        await auth.signOut();
+        showLogin("Reset-Mail wurde gesendet. Melde dich danach wieder an und vergib eine neue PIN.", "success");
+      } catch (error) {
+        handleAuthError(error);
+      }
+    });
+
+    document.getElementById("pinLogoutBtn").addEventListener("click", () => auth.signOut());
+
+    auth.onAuthStateChanged(async (user) => {
+      if (unsubscribeEntries) {
+        unsubscribeEntries();
+        unsubscribeEntries = null;
+      }
+      entries = [];
+      currentUser = user;
+      currentPinHash = "";
+      render();
+
+      if (!user) {
+        showLogin();
+        return;
+      }
+
+      try {
+        await loadSecurityState(user);
+      } catch (error) {
+        handleAuthError(error);
+      }
+    });
   </script>
 </body>
 </html>

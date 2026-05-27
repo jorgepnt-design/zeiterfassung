@@ -12,6 +12,9 @@ Statische Web-App zur Arbeitszeiterfassung auf Basis des bisherigen Excel-Makros
 - Lokale Speicherung im Browser
 - CSV-Export für Excel
 - App-Icon und Web-App-Manifest für Installation auf Handy/Desktop
+- Cloud-Speicherung mit Firebase Auth und Firestore
+- Zugriff erst nach Konto-Login und App-PIN
+- Passwort-Reset per E-Mail, falls PIN/Passwort vergessen wurde
 
 ## Nutzung
 
@@ -22,3 +25,26 @@ Für GitHub Pages:
 1. Dateien in das Repository `jorgepnt-design/zeiterfassung` hochladen.
 2. In GitHub unter `Settings > Pages` die Quelle `GitHub Actions` auswählen.
 3. Nach dem Push auf `main` wird die App automatisch veröffentlicht.
+
+## Firebase
+
+Die App nutzt das Firebase-Projekt `arbeitsapp-3364c`.
+
+In Firebase Authentication müssen E-Mail/Passwort-Anmeldungen aktiviert sein. Außerdem muss die GitHub-Pages-Domain unter `Authentication > Settings > Authorized domains` eingetragen sein:
+
+```txt
+jorgepnt-design.github.io
+```
+
+Für Firestore müssen angemeldete Benutzer nur auf ihre eigenen Daten zugreifen dürfen:
+
+```txt
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
