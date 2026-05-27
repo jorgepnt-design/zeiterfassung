@@ -11,6 +11,7 @@ Statische Web-App zur Arbeitszeiterfassung auf Basis des bisherigen Excel-Makros
 - Netto-Zeit wird ab mehr als `9,99 h` rot hervorgehoben
 - Lokale Speicherung im Browser
 - CSV-Export für Excel
+- App-Icon und Web-App-Manifest für Installation auf Handy/Desktop
 
 ## Nutzung
 
@@ -21,4 +22,3 @@ Für GitHub Pages:
 1. Dateien in das Repository `jorgepnt-design/zeiterfassung` hochladen.
 2. In GitHub unter `Settings > Pages` die Quelle `GitHub Actions` auswählen.
 3. Nach dem Push auf `main` wird die App automatisch veröffentlicht.
-
