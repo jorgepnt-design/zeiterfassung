@@ -510,12 +510,13 @@
   <section class="login-screen" id="authScreen">
     <div class="auth-card">
       <h1>Zeiterfassung</h1>
-      <p id="authIntro">Melde dich mit deinem Konto an. Deine Zeiten werden danach in der Cloud gespeichert und sind auch auf dem iPhone verfuegbar.</p>
+      <p id="authIntro">Nutze die App lokal mit PIN oder melde dich an, um deine Cloud-Daten auf mehreren Geraeten zu sehen.</p>
       <div class="error" id="fileProtocolWarning">
         Die App wurde als Datei geoeffnet. Konto/Login funktioniert nur ueber https://jorgepnt-design.github.io/zeiterfassung/ oder localhost.
       </div>
 
       <form class="auth-form" id="loginForm">
+        <button class="btn btn-primary" id="localStartBtn" type="button">Lokal mit PIN starten</button>
         <div class="field">
           <label for="authEmail">E-Mail</label>
           <input id="authEmail" type="email" autocomplete="email" required />
@@ -524,7 +525,7 @@
           <label for="authPassword">Passwort</label>
           <input id="authPassword" type="password" autocomplete="current-password" minlength="6" required />
         </div>
-        <button class="btn btn-primary" id="loginBtn" type="submit">Anmelden</button>
+        <button class="btn btn-secondary" id="loginBtn" type="submit">Cloud anmelden</button>
         <button class="btn btn-secondary" id="registerBtn" type="button">Konto erstellen</button>
         <button class="btn btn-secondary hidden" id="forcePinBtn" type="button">PIN jetzt vergeben</button>
         <div class="auth-switch">
@@ -716,6 +717,7 @@
     let pinSetupMode = false;
     let registrationPinSetupActive = false;
     let unsubscribeEntries = null;
+    let storageMode = "local";
 
     function debug(message) {
       const time = new Date().toLocaleTimeString("de-DE");
@@ -753,8 +755,13 @@
       return db.doc(`users/${currentUser.uid}/settings/security`);
     }
 
+    function localPinHashKey() {
+      return "zeiterfassung.localPinHash.v1";
+    }
+
     async function hashPin(pin) {
-      const data = new TextEncoder().encode(`${currentUser.uid}:${pin}`);
+      const scope = currentUser?.uid || "local";
+      const data = new TextEncoder().encode(`${scope}:${pin}`);
       const digest = await crypto.subtle.digest("SHA-256", data);
       return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
     }
@@ -764,7 +771,7 @@
     }
 
     function pinSessionKey() {
-      return `zeiterfassung.pinUnlocked.${currentUser.uid}`;
+      return `zeiterfassung.pinUnlocked.${currentUser?.uid || "local"}`;
     }
 
     function showLogin(message = "", type = "") {
@@ -814,7 +821,7 @@
       debug("zeige App");
       authScreen.classList.add("hidden");
       appRoot.classList.remove("hidden");
-      userBar.textContent = currentUser.email || "Angemeldet";
+      userBar.textContent = currentUser?.email ? `Cloud: ${currentUser.email}` : "Lokal";
       setAuthMessage("");
       resetForm();
       render();
@@ -930,6 +937,27 @@
       }
     }
 
+    function saveLocalEntries() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    }
+
+    function loadLocalMode() {
+      storageMode = "local";
+      currentUser = null;
+      currentPinHash = localStorage.getItem(localPinHashKey()) || "";
+      entries = loadLocalEntries();
+      render();
+      if (!currentPinHash) {
+        showPinSetup("Bitte vergib eine lokale App-PIN.");
+        return;
+      }
+      if (sessionStorage.getItem(pinSessionKey()) === "1") {
+        showApp();
+        return;
+      }
+      showPinUnlock("Bitte lokale PIN eingeben.");
+    }
+
     async function migrateLocalEntries() {
       const localEntries = loadLocalEntries();
       const marker = `zeiterfassung.migrated.${currentUser.uid}`;
@@ -1043,7 +1071,13 @@
       const entry = entries.find((item) => item.id === id);
       if (!entry) return;
       if (!confirm(`Eintrag vom ${formatDate(entry.date)} löschen?`)) return;
-      await entriesCollection().doc(id).delete();
+      if (storageMode === "cloud" && currentUser) {
+        await entriesCollection().doc(id).delete();
+      } else {
+        entries = entries.filter((item) => item.id !== id);
+        saveLocalEntries();
+        render();
+      }
       if (fields.id.value === id) resetForm();
     }
 
@@ -1085,6 +1119,7 @@
 
     async function loadSecurityState(user) {
       debug(`lade PIN-Status fuer ${user.email || user.uid}`);
+      storageMode = "cloud";
       currentUser = user;
       const security = await securityDoc().get();
       currentPinHash = security.exists ? security.get("pinHash") || "" : "";
@@ -1134,6 +1169,7 @@
       registrationPinSetupActive = true;
       debug(`Registrierung erfolgreich: ${credential.user?.uid || "ohne uid"}`);
       forcePinBtn.classList.remove("hidden");
+      storageMode = "cloud";
       showPinSetup("Konto erstellt. Bitte vergib jetzt deine App-PIN.");
       return credential;
     }
@@ -1163,15 +1199,21 @@
         }
         setAuthMessage("PIN wird gespeichert...");
         debug("PIN speichern startet");
-        await securityDoc().set({
-          pinHash: candidateHash,
-          pinUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
+        if (storageMode === "cloud" && currentUser) {
+          await securityDoc().set({
+            pinHash: candidateHash,
+            pinUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        } else {
+          localStorage.setItem(localPinHashKey(), candidateHash);
+        }
         currentPinHash = candidateHash;
         registrationPinSetupActive = false;
         debug("PIN gespeichert");
-        await migrateLocalEntries();
-        subscribeEntries();
+        if (storageMode === "cloud" && currentUser) {
+          await migrateLocalEntries();
+          subscribeEntries();
+        }
         sessionStorage.setItem(pinSessionKey(), "1");
         showApp();
         return;
@@ -1180,6 +1222,10 @@
       if (candidateHash !== currentPinHash) {
         setAuthMessage("PIN ist falsch.", "error");
         return;
+      }
+      if (storageMode === "local") {
+        entries = loadLocalEntries();
+        render();
       }
       sessionStorage.setItem(pinSessionKey(), "1");
       showApp();
@@ -1197,7 +1243,6 @@
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      if (!currentUser) return;
       const values = collectValues();
       if (!values.date) {
         showError("Bitte ein Datum auswählen.");
@@ -1223,7 +1268,17 @@
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        await entriesCollection().doc(entry.id).set(entry, { merge: true });
+        if (storageMode === "cloud" && currentUser) {
+          await entriesCollection().doc(entry.id).set(entry, { merge: true });
+        } else if (existingId) {
+          entries = entries.map((item) => item.id === existingId ? entry : item);
+          saveLocalEntries();
+          render();
+        } else {
+          entries.push(entry);
+          saveLocalEntries();
+          render();
+        }
         resetForm();
       } catch (error) {
         showError(error.message);
@@ -1245,17 +1300,38 @@
       sessionStorage.removeItem(pinSessionKey());
       showPinUnlock("App gesperrt. Bitte PIN eingeben.");
     });
-    document.getElementById("logoutBtn").addEventListener("click", () => auth.signOut());
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      if (storageMode === "cloud") auth.signOut();
+      else {
+        sessionStorage.removeItem(pinSessionKey());
+        showLogin("Lokaler Modus gesperrt.");
+      }
+    });
     document.getElementById("clearBtn").addEventListener("click", async () => {
       if (!entries.length) return;
       if (!confirm("Alle Zeiterfassungs-Einträge löschen?")) return;
-      const batch = db.batch();
-      entries.forEach((entry) => batch.delete(entriesCollection().doc(entry.id)));
-      await batch.commit();
+      if (storageMode === "cloud" && currentUser) {
+        const batch = db.batch();
+        entries.forEach((entry) => batch.delete(entriesCollection().doc(entry.id)));
+        await batch.commit();
+      } else {
+        entries = [];
+        saveLocalEntries();
+        render();
+      }
       resetForm();
     });
 
     document.getElementById("todayLabel").textContent = formatDate(isoToday());
+
+    document.getElementById("localStartBtn").addEventListener("click", () => {
+      if (unsubscribeEntries) {
+        unsubscribeEntries();
+        unsubscribeEntries = null;
+      }
+      debug("lokaler Start");
+      loadLocalMode();
+    });
 
     loginForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -1313,7 +1389,10 @@
       }
     });
 
-    document.getElementById("pinLogoutBtn").addEventListener("click", () => auth.signOut());
+    document.getElementById("pinLogoutBtn").addEventListener("click", () => {
+      if (storageMode === "cloud") auth.signOut();
+      else showLogin("Lokaler Modus beendet.");
+    });
 
     auth.onAuthStateChanged(async (user) => {
       debug(user ? `Auth-State: angemeldet ${user.email || user.uid}` : "Auth-State: abgemeldet");
@@ -1324,11 +1403,13 @@
       entries = [];
       currentUser = user;
       currentPinHash = "";
-      render();
 
       if (!user) {
         registrationPinSetupActive = false;
-        showLogin();
+        if (storageMode === "cloud") {
+          storageMode = "local";
+          showLogin();
+        }
         return;
       }
 

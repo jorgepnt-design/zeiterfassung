@@ -13,7 +13,9 @@ Statische Web-App zur Arbeitszeiterfassung auf Basis des bisherigen Excel-Makros
 - CSV-Export für Excel
 - App-Icon und Web-App-Manifest für Installation auf Handy/Desktop
 - Cloud-Speicherung mit Firebase Auth und Firestore
-- Zugriff erst nach Konto-Login und App-PIN
+- Nutzung ohne Konto mit lokaler Speicherung
+- Konto-Login nur fuer eigene Cloud-Daten und Zugriff von mehreren Geraeten
+- Lokale oder Cloud-PIN als App-Sperre
 - Passwort-Reset per E-Mail, falls PIN/Passwort vergessen wurde
 
 ## Nutzung
