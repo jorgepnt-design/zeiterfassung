@@ -143,14 +143,20 @@
       color: var(--muted);
       font-size: 0.9rem;
       line-height: 1.35;
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      background: var(--surface-soft);
     }
 
     .auth-message.error {
       color: var(--danger);
+      background: var(--danger-soft);
     }
 
     .auth-message.success {
       color: var(--success);
+      background: #ecfdf5;
     }
 
     .pin-grid {
@@ -618,6 +624,14 @@
     </section>
   </main>
 
+  <script>
+    window.addEventListener("error", function (event) {
+      var box = document.getElementById("authMessage");
+      if (!box) return;
+      box.className = "auth-message error";
+      box.textContent = "Technischer Fehler: " + (event.message || "Script konnte nicht geladen werden.");
+    });
+  </script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -631,6 +645,9 @@
       appId: "1:202291981896:web:0294b473eaff98a454b27d",
       measurementId: "G-7ZJCVC7TRZ"
     };
+    if (!window.firebase) {
+      throw new Error("Firebase konnte nicht geladen werden. Bitte Internetverbindung, Firmenfilter oder Browser-Blocker pruefen.");
+    }
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
@@ -679,6 +696,7 @@
     let currentUser = null;
     let currentPinHash = "";
     let pinSetupMode = false;
+    let registrationPinSetupActive = false;
     let unsubscribeEntries = null;
 
     function toIsoDate(date) {
@@ -1065,7 +1083,9 @@
         return;
       }
       setAuthMessage("Anmeldung laeuft...");
-      await auth.signInWithEmailAndPassword(email, password);
+      const credential = await auth.signInWithEmailAndPassword(email, password);
+      setAuthMessage("Angemeldet. PIN wird geladen...");
+      return credential;
     }
 
     async function registerWithEmail() {
@@ -1076,7 +1096,11 @@
         return;
       }
       setAuthMessage("Konto wird erstellt...");
-      await auth.createUserWithEmailAndPassword(email, password);
+      const credential = await auth.createUserWithEmailAndPassword(email, password);
+      currentUser = credential.user;
+      registrationPinSetupActive = true;
+      showPinSetup("Konto erstellt. Bitte vergib jetzt deine App-PIN.");
+      return credential;
     }
 
     async function sendPasswordReset(email) {
@@ -1102,11 +1126,15 @@
           setAuthMessage("Die beiden PINs stimmen nicht ueberein.", "error");
           return;
         }
+        setAuthMessage("PIN wird gespeichert...");
         await securityDoc().set({
           pinHash: candidateHash,
           pinUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
         currentPinHash = candidateHash;
+        registrationPinSetupActive = false;
+        await migrateLocalEntries();
+        subscribeEntries();
         sessionStorage.setItem(pinSessionKey(), "1");
         showApp();
         return;
@@ -1201,6 +1229,7 @@
     });
 
     document.getElementById("registerBtn").addEventListener("click", async () => {
+      setAuthMessage("Konto-Erstellung gestartet...");
       try {
         await registerWithEmail();
       } catch (error) {
@@ -1250,7 +1279,12 @@
       render();
 
       if (!user) {
+        registrationPinSetupActive = false;
         showLogin();
+        return;
+      }
+
+      if (registrationPinSetupActive && currentUser?.uid === user.uid) {
         return;
       }
 
