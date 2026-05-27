@@ -314,6 +314,11 @@
       font-weight: 800;
     }
 
+    .status-open {
+      color: var(--primary);
+      font-weight: 800;
+    }
+
     .row-actions {
       display: flex;
       gap: 8px;
@@ -432,7 +437,7 @@
             </div>
             <div class="field">
               <label for="geht1">Geht</label>
-              <input id="geht1" type="time" required />
+              <input id="geht1" type="time" />
             </div>
             <div class="field">
               <label for="kommt2">2. Kommt</label>
@@ -553,7 +558,13 @@
       const start2 = parseTime(values.kommt2);
       const end2 = parseTime(values.geht2);
 
-      if (start1 === null || end1 === null) {
+      if (start1 === null) {
+        return { gross: 0, deduction: 0, net: 0, complete: false };
+      }
+      if (end1 === null) {
+        if (values.kommt2 || values.geht2) {
+          throw new Error("Der zweite Zeitblock kann erst berechnet werden, wenn die erste Geht-Zeit eingetragen ist.");
+        }
         return { gross: 0, deduction: 0, net: 0, complete: false };
       }
       if (end1 <= start1) {
@@ -592,6 +603,10 @@
     function formatDate(isoDate) {
       const [year, month, day] = isoDate.split("-").map(Number);
       return formatter.format(new Date(year, month - 1, day));
+    }
+
+    function isComplete(entry) {
+      return entry.complete !== false;
     }
 
     function showError(message) {
@@ -657,12 +672,12 @@
         <tr>
           <td>${formatDate(entry.date)}</td>
           <td>${entry.kommt1}</td>
-          <td>${entry.geht1}</td>
+          <td>${entry.geht1 || '<span class="status-open">offen</span>'}</td>
           <td>${entry.kommt2 || ""}</td>
           <td>${entry.geht2 || ""}</td>
-          <td>${formatNumber(entry.gross)}</td>
-          <td>${formatNumber(entry.deduction)}</td>
-          <td class="${entry.net > 9.99 ? "netto-high" : ""}">${formatNumber(entry.net)}</td>
+          <td>${isComplete(entry) ? formatNumber(entry.gross) : ""}</td>
+          <td>${isComplete(entry) ? formatNumber(entry.deduction) : ""}</td>
+          <td class="${entry.net > 9.99 ? "netto-high" : ""}">${isComplete(entry) ? formatNumber(entry.net) : ""}</td>
           <td>
             <div class="row-actions">
               <button class="icon-btn" type="button" data-edit="${entry.id}" title="Eintrag bearbeiten">✎</button>
@@ -698,7 +713,7 @@
       fields.id.value = entry.id;
       fields.date.value = entry.date;
       fields.kommt1.value = entry.kommt1;
-      fields.geht1.value = entry.geht1;
+      fields.geht1.value = entry.geht1 || "";
       fields.kommt2.value = entry.kommt2 || "";
       fields.geht2.value = entry.geht2 || "";
       formTitle.textContent = "Eintrag bearbeiten";
@@ -730,12 +745,12 @@
         .map((entry) => [
           formatDate(entry.date),
           entry.kommt1,
-          entry.geht1,
+          entry.geht1 || "",
           entry.kommt2 || "",
           entry.geht2 || "",
-          formatNumber(entry.gross),
-          formatNumber(entry.deduction),
-          formatNumber(entry.net)
+          isComplete(entry) ? formatNumber(entry.gross) : "",
+          isComplete(entry) ? formatNumber(entry.deduction) : "",
+          isComplete(entry) ? formatNumber(entry.net) : ""
         ]);
 
       const csv = [header, ...lines]
@@ -763,8 +778,8 @@
 
       try {
         const result = calculate(values);
-        if (!result.complete) {
-          showError("Bitte den ersten Zeitblock vollständig ausfüllen.");
+        if (!values.kommt1) {
+          showError("Bitte mindestens die erste Kommt-Zeit eintragen.");
           return;
         }
 
@@ -775,7 +790,8 @@
           ...values,
           gross: result.gross,
           deduction: result.deduction,
-          net: result.net
+          net: result.net,
+          complete: result.complete
         };
 
         if (existingId) {
