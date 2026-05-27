@@ -491,6 +491,9 @@
     <div class="auth-card">
       <h1>Zeiterfassung</h1>
       <p id="authIntro">Melde dich mit deinem Konto an. Deine Zeiten werden danach in der Cloud gespeichert und sind auch auf dem iPhone verfuegbar.</p>
+      <div class="error" id="fileProtocolWarning">
+        Die App wurde als Datei geoeffnet. Konto/Login funktioniert nur ueber https://jorgepnt-design.github.io/zeiterfassung/ oder localhost.
+      </div>
 
       <form class="auth-form" id="loginForm">
         <div class="field">
@@ -670,6 +673,7 @@
     const pinLabel = document.getElementById("pinLabel");
     const pinSubmitBtn = document.getElementById("pinSubmitBtn");
     const userBar = document.getElementById("userBar");
+    const fileProtocolWarning = document.getElementById("fileProtocolWarning");
 
     let entries = [];
     let currentUser = null;
@@ -727,6 +731,7 @@
       authScreen.classList.remove("hidden");
       loginForm.classList.remove("hidden");
       pinForm.classList.add("hidden");
+      fileProtocolWarning.classList.toggle("visible", window.location.protocol === "file:");
       setAuthMessage(message, type);
     }
 
@@ -1118,7 +1123,7 @@
     function handleAuthError(error) {
       const code = error.code || "";
       if (code === "auth/unauthorized-domain") {
-        setAuthMessage("Diese Domain ist in Firebase Auth noch nicht freigeschaltet. Fuege jorgepnt-design.github.io in Firebase unter Authentication > Settings > Authorized domains hinzu.", "error");
+        setAuthMessage("Diese Adresse ist in Firebase Auth nicht freigeschaltet. Oeffne die App ueber GitHub Pages oder localhost, nicht als file:// Datei.", "error");
         return;
       }
       setAuthMessage(error.message || String(error), "error");
