@@ -872,7 +872,7 @@
       const attendance1 = hoursBetween(start1, end1);
       const attendance2 = values.kommt2 && values.geht2 ? hoursBetween(start2, end2) : 0;
       const gross = round2(attendance1 + attendance2);
-      const deduction = gross > 6 ? 0.75 : 0;
+      const deduction = gross > 6 ? 0.5 : 0;
       const net = round2(gross - deduction);
 
       return { gross, deduction, net, complete: true };
@@ -999,7 +999,7 @@
     }
 
     function render() {
-      const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date) || sortValue(b).localeCompare(sortValue(a)));
+      const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date) || sortValue(a).localeCompare(sortValue(b)));
       entryCount.textContent = entries.length === 1 ? "1 Eintrag gespeichert" : `${entries.length} Einträge gespeichert`;
 
       const currentMonth = isoToday().slice(0, 7);
