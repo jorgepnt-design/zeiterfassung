@@ -724,12 +724,7 @@
     const db = firebase.firestore();
 
     const STORAGE_KEY = "zeiterfassung.entries.v1";
-    const formatter = new Intl.DateTimeFormat("de-DE", {
-      weekday: "long",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric"
-    });
+    const weekdaysShort = ["So.", "Mo.", "Di.", "Mi.", "Do.", "Fr.", "Sa."];
 
     const form = document.getElementById("timeForm");
     const fields = {
@@ -948,7 +943,8 @@
 
     function formatDate(isoDate) {
       const [year, month, day] = isoDate.split("-").map(Number);
-      return formatter.format(new Date(year, month - 1, day));
+      const date = new Date(year, month - 1, day);
+      return `${weekdaysShort[date.getDay()]} ${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
     }
 
     function isComplete(entry) {
