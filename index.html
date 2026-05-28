@@ -794,10 +794,6 @@
               <label for="monthFilter">Monat</label>
               <select id="monthFilter"></select>
             </div>
-            <div class="field">
-              <label for="targetHours">Soll h/Tag</label>
-              <input id="targetHours" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 7,8" />
-            </div>
           </div>
         </div>
         <div class="overview" id="monthOverview"></div>
@@ -855,7 +851,6 @@
     const tableWrap = document.getElementById("tableWrap");
     const entryCount = document.getElementById("entryCount");
     const monthFilter = document.getElementById("monthFilter");
-    const targetHoursInput = document.getElementById("targetHours");
     const monthOverview = document.getElementById("monthOverview");
     const openBanner = document.getElementById("openBanner");
     const formTitle = document.getElementById("formTitle");
@@ -883,7 +878,6 @@
     let unsubscribeEntries = null;
     let storageMode = "local";
     let selectedMonth = isoToday().slice(0, 7);
-    let targetHours = Number(localStorage.getItem("zeiterfassung.targetHours.v1") || "0");
 
     function debug(message) {
       const time = new Date().toLocaleTimeString("de-DE");
@@ -1078,18 +1072,6 @@
       return entries.filter((entry) => entry.date && entry.date.startsWith(selectedMonth));
     }
 
-    function diffClass(value) {
-      if (value > 0) return "diff-positive";
-      if (value < 0) return "diff-negative";
-      return "";
-    }
-
-    function formatDiff(value) {
-      if (!Number.isFinite(value)) return "-";
-      const sign = value > 0 ? "+" : "";
-      return `${sign}${formatNumber(round2(value))}`;
-    }
-
     function isComplete(entry) {
       return entry.complete !== false;
     }
@@ -1212,14 +1194,12 @@
       const workDays = new Set(completeEntries.map((entry) => entry.date)).size;
       const netTotal = round2(completeEntries.reduce((sum, entry) => sum + (Number(entry.net) || 0), 0));
       const avg = workDays ? round2(netTotal / workDays) : 0;
-      const targetTotal = targetHours > 0 ? round2(workDays * targetHours) : 0;
-      const balance = targetHours > 0 ? round2(netTotal - targetTotal) : 0;
 
       monthOverview.innerHTML = `
         <div class="overview-item"><span>Netto Monat</span><strong>${formatNumber(netTotal)} h</strong></div>
         <div class="overview-item"><span>Arbeitstage</span><strong>${workDays}</strong></div>
         <div class="overview-item"><span>Durchschnitt</span><strong>${formatNumber(avg)} h</strong></div>
-        <div class="overview-item"><span>+/- Soll</span><strong class="${diffClass(balance)}">${targetHours > 0 ? `${formatDiff(balance)} h` : "-"}</strong></div>
+        <div class="overview-item"><span>Einträge</span><strong>${monthEntries.length}</strong></div>
       `;
     }
 
@@ -1246,9 +1226,7 @@
         return;
       }
 
-      const rows = sorted.map((entry) => {
-        const dayDiff = isComplete(entry) && targetHours > 0 ? round2(entry.net - targetHours) : null;
-        return `
+      const rows = sorted.map((entry) => `
           <tr>
             <td class="date-cell">${formatDate(entry.date)}</td>
             <td class="time-cell">${entry.kommt1}</td>
@@ -1258,7 +1236,6 @@
             <td class="number-cell">${isComplete(entry) ? formatNumber(entry.gross) : "-"}</td>
             <td class="number-cell">${isComplete(entry) ? formatNumber(entry.deduction) : "-"}</td>
             <td class="net-cell">${isComplete(entry) ? `<span class="net-badge ${entry.net >= 10 ? "netto-high" : ""}">${formatNumber(entry.net)}</span>` : "-"}</td>
-            <td class="number-cell ${dayDiff === null ? "" : diffClass(dayDiff)}">${dayDiff === null ? "-" : formatDiff(dayDiff)}</td>
             <td>
               <div class="row-actions">
                 <button class="icon-btn" type="button" data-edit="${entry.id}" title="Eintrag bearbeiten">✎</button>
@@ -1266,8 +1243,7 @@
               </div>
             </td>
           </tr>
-        `;
-      }).join("");
+        `).join("");
 
       tableWrap.innerHTML = `
         <table>
@@ -1281,7 +1257,6 @@
               <th class="number-cell">Gesamt</th>
               <th class="number-cell">Pause</th>
               <th class="net-cell">Netto</th>
-              <th class="number-cell">+/-</th>
               <th class="net-cell">Aktion</th>
             </tr>
           </thead>
@@ -1326,10 +1301,9 @@
         return;
       }
 
-      const header = ["DATUM", "KOMMT", "GEHT", "KOMMT", "GEHT", "GESAMT ANWESENHEIT", "ABGEZOGEN", "NETTO", "SOLL", "+/-"];
+      const header = ["DATUM", "KOMMT", "GEHT", "KOMMT", "GEHT", "GESAMT ANWESENHEIT", "ABGEZOGEN", "NETTO"];
       const lines = exportEntries.map((entry) => {
         const complete = isComplete(entry);
-        const dayDiff = complete && targetHours > 0 ? round2(entry.net - targetHours) : "";
         return [
           formatDate(entry.date),
           entry.kommt1,
@@ -1338,20 +1312,15 @@
           entry.geht2 || "",
           complete ? formatNumber(entry.gross) : "",
           complete ? formatNumber(entry.deduction) : "",
-          complete ? formatNumber(entry.net) : "",
-          complete && targetHours > 0 ? formatNumber(targetHours) : "",
-          dayDiff === "" ? "" : formatDiff(dayDiff)
+          complete ? formatNumber(entry.net) : ""
         ];
       });
 
       const completeEntries = exportEntries.filter(isComplete);
-      const workDays = new Set(completeEntries.map((entry) => entry.date)).size;
       const grossTotal = round2(completeEntries.reduce((sum, entry) => sum + (Number(entry.gross) || 0), 0));
       const deductionTotal = round2(completeEntries.reduce((sum, entry) => sum + (Number(entry.deduction) || 0), 0));
       const netTotal = round2(completeEntries.reduce((sum, entry) => sum + (Number(entry.net) || 0), 0));
-      const targetTotal = targetHours > 0 ? round2(workDays * targetHours) : "";
-      const balance = targetHours > 0 ? round2(netTotal - targetTotal) : "";
-      lines.push(["SUMME", "", "", "", "", formatNumber(grossTotal), formatNumber(deductionTotal), formatNumber(netTotal), targetTotal === "" ? "" : formatNumber(targetTotal), balance === "" ? "" : formatDiff(balance)]);
+      lines.push(["SUMME", "", "", "", "", formatNumber(grossTotal), formatNumber(deductionTotal), formatNumber(netTotal)]);
 
       const csv = [header, ...lines]
         .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(";"))
@@ -1564,12 +1533,6 @@
       render();
     });
 
-    targetHoursInput.addEventListener("input", () => {
-      targetHours = Number(String(targetHoursInput.value).replace(",", ".")) || 0;
-      localStorage.setItem("zeiterfassung.targetHours.v1", String(targetHours));
-      render();
-    });
-
     document.getElementById("resetBtn").addEventListener("click", resetForm);
     document.getElementById("exportBtn").addEventListener("click", exportCsv);
     document.getElementById("lockBtn").addEventListener("click", () => {
@@ -1599,7 +1562,6 @@
     });
 
     document.getElementById("todayLabel").textContent = formatDate(isoToday());
-    targetHoursInput.value = targetHours > 0 ? String(targetHours) : "";
     updateMonthOptions();
 
     document.getElementById("localStartBtn").addEventListener("click", () => {
