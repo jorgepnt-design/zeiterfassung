@@ -385,37 +385,90 @@
 
     table {
       width: 100%;
-      min-width: 760px;
-      border-collapse: collapse;
+      min-width: 840px;
+      border-collapse: separate;
+      border-spacing: 0;
     }
 
     th,
     td {
-      padding: 12px 13px;
+      padding: 11px 12px;
       border-bottom: 1px solid var(--line);
       text-align: left;
       white-space: nowrap;
     }
 
     th {
-      background: #f8fafc;
+      background: #eef3f7;
       color: var(--muted);
       font-size: 0.76rem;
       text-transform: uppercase;
       letter-spacing: 0;
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
 
     td {
       font-size: 0.94rem;
+      background: #fff;
+      vertical-align: middle;
+    }
+
+    tbody tr:nth-child(even) td {
+      background: #f9fbfd;
+    }
+
+    tbody tr:hover td {
+      background: #f1f7fa;
     }
 
     tr:last-child td {
       border-bottom: 0;
     }
 
+    .date-cell {
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .time-cell {
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      color: #263544;
+    }
+
+    .number-cell {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .net-cell {
+      text-align: right;
+    }
+
+    .net-badge {
+      display: inline-flex;
+      justify-content: center;
+      min-width: 72px;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      background: #ecfdf5;
+      color: var(--success);
+      border: 1px solid #bbf7d0;
+    }
+
     .netto-high {
       color: var(--danger);
       font-weight: 800;
+    }
+
+    .net-badge.netto-high {
+      color: var(--danger);
+      background: var(--danger-soft);
+      border-color: #f0caca;
     }
 
     .status-open {
@@ -426,6 +479,7 @@
     .row-actions {
       display: flex;
       gap: 8px;
+      justify-content: flex-end;
     }
 
     .icon-btn {
@@ -872,7 +926,7 @@
       const attendance1 = hoursBetween(start1, end1);
       const attendance2 = values.kommt2 && values.geht2 ? hoursBetween(start2, end2) : 0;
       const gross = round2(attendance1 + attendance2);
-      const deduction = gross > 6 ? 0.5 : 0;
+      const deduction = gross > 9 ? 0.75 : gross > 6 ? 0.5 : 0;
       const net = round2(gross - deduction);
 
       return { gross, deduction, net, complete: true };
@@ -1015,14 +1069,14 @@
 
       const rows = sorted.map((entry) => `
         <tr>
-          <td>${formatDate(entry.date)}</td>
-          <td>${entry.kommt1}</td>
-          <td>${entry.geht1 || '<span class="status-open">offen</span>'}</td>
-          <td>${entry.kommt2 || ""}</td>
-          <td>${entry.geht2 || ""}</td>
-          <td>${isComplete(entry) ? formatNumber(entry.gross) : ""}</td>
-          <td>${isComplete(entry) ? formatNumber(entry.deduction) : ""}</td>
-          <td class="${entry.net > 9.99 ? "netto-high" : ""}">${isComplete(entry) ? formatNumber(entry.net) : ""}</td>
+          <td class="date-cell">${formatDate(entry.date)}</td>
+          <td class="time-cell">${entry.kommt1}</td>
+          <td class="time-cell">${entry.geht1 || '<span class="status-open">offen</span>'}</td>
+          <td class="time-cell">${entry.kommt2 || "-"}</td>
+          <td class="time-cell">${entry.geht2 || "-"}</td>
+          <td class="number-cell">${isComplete(entry) ? formatNumber(entry.gross) : "-"}</td>
+          <td class="number-cell">${isComplete(entry) ? formatNumber(entry.deduction) : "-"}</td>
+          <td class="net-cell">${isComplete(entry) ? `<span class="net-badge ${entry.net >= 10 ? "netto-high" : ""}">${formatNumber(entry.net)}</span>` : "-"}</td>
           <td>
             <div class="row-actions">
               <button class="icon-btn" type="button" data-edit="${entry.id}" title="Eintrag bearbeiten">✎</button>
@@ -1037,14 +1091,14 @@
           <thead>
             <tr>
               <th>Datum</th>
-              <th>Kommt</th>
-              <th>Geht</th>
-              <th>Kommt</th>
-              <th>Geht</th>
-              <th>Gesamt Anwesenheit</th>
-              <th>Abgezogen</th>
-              <th>Netto</th>
-              <th>Aktion</th>
+              <th>Kommt 1</th>
+              <th>Geht 1</th>
+              <th>Kommt 2</th>
+              <th>Geht 2</th>
+              <th class="number-cell">Gesamt</th>
+              <th class="number-cell">Pause</th>
+              <th class="net-cell">Netto</th>
+              <th class="net-cell">Aktion</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
