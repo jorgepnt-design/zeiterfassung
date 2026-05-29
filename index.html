@@ -1032,10 +1032,24 @@
       const attendance1 = hoursBetween(start1, end1);
       const attendance2 = values.kommt2 && values.geht2 ? hoursBetween(start2, end2) : 0;
       const gross = round2(attendance1 + attendance2);
-      const deduction = gross > 9 ? 0.75 : gross > 6 ? 0.5 : 0;
+
+      // Tatsächliche Pause = Zeit zwischen den Blöcken (in Dezimalstunden)
+      const actualBreak = (values.kommt2 && values.geht2 && start2 !== null && end1 !== null)
+        ? round2((start2 - end1) / 60)
+        : 0;
+
+      // Mindestpause nach SAP ESS Zeitbewertung
+      // Erste Bewertung: Bruttozeit > 6h → min. 30 min (0.5h)
+      const minBreak1 = gross > 6 ? 0.5 : 0;
+      const effectiveBreak1 = Math.max(actualBreak, minBreak1);
+      const net1 = gross - effectiveBreak1;
+
+      // Zweite Bewertung: Wenn Nettozeit nach erster Bewertung > 9h → min. 45 min (0.75h)
+      const minBreak2 = net1 > 9 ? 0.75 : minBreak1;
+      const deduction = Math.max(actualBreak, minBreak2);
       const net = round2(gross - deduction);
 
-      return { gross, deduction, net, complete: true };
+      return { gross, deduction: round2(deduction), net, complete: true };
     }
 
     function collectValues() {
