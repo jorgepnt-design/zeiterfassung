@@ -13,8 +13,7 @@ Statische Web-App zur Arbeitszeiterfassung auf Basis des bisherigen Excel-Makros
 - App-Icon und Web-App-Manifest für Installation auf Handy/Desktop
 - Cloud-Speicherung mit Firebase Auth und Firestore
 - Konto-Login nur fuer eigene Cloud-Daten und Zugriff von mehreren Geraeten
-- Cloud-PIN als App-Sperre
-- Passwort-Reset per E-Mail, falls PIN/Passwort vergessen wurde
+- Passwort-Reset per E-Mail
 
 ## Nutzung
 

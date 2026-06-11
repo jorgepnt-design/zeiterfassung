@@ -175,12 +175,6 @@
       word-break: break-word;
     }
 
-    .pin-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-
     .userbar {
       display: flex;
       align-items: center;
@@ -674,26 +668,9 @@
         </div>
         <button class="btn btn-secondary" id="loginBtn" type="submit">Cloud anmelden</button>
         <button class="btn btn-secondary" id="registerBtn" type="button">Konto erstellen</button>
-        <button class="btn btn-secondary hidden" id="forcePinBtn" type="button">PIN jetzt vergeben</button>
         <div class="auth-switch">
           <span>Passwort vergessen?</span>
           <button class="link-btn" id="resetPasswordBtn" type="button">Reset-Mail senden</button>
-        </div>
-      </form>
-
-      <form class="auth-form hidden" id="pinForm">
-        <div class="field">
-          <label for="pinInput" id="pinLabel">PIN</label>
-          <input id="pinInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" />
-        </div>
-        <div class="field hidden" id="pinConfirmField">
-          <label for="pinConfirmInput">PIN wiederholen</label>
-          <input id="pinConfirmInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" />
-        </div>
-        <button class="btn btn-primary" id="pinSubmitBtn" type="submit">Entsperren</button>
-        <div class="auth-switch">
-          <button class="link-btn" id="forgotPinBtn" type="button">Passwort vergessen</button>
-          <button class="link-btn" id="pinLogoutBtn" type="button">Abmelden</button>
         </div>
       </form>
 
@@ -711,7 +688,6 @@
       <div class="toolbar">
         <div class="userbar" id="userBar"></div>
         <button class="btn btn-secondary" id="exportBtn" type="button" title="CSV herunterladen">Export CSV</button>
-        <button class="btn btn-secondary" id="lockBtn" type="button" title="App sperren">Sperren</button>
         <button class="btn btn-secondary" id="logoutBtn" type="button" title="Abmelden">Abmelden</button>
         <button class="btn btn-danger" id="clearBtn" type="button" title="Alle Einträge löschen">Alles löschen</button>
       </div>
@@ -857,23 +833,13 @@
     const authScreen = document.getElementById("authScreen");
     const appRoot = document.getElementById("appRoot");
     const loginForm = document.getElementById("loginForm");
-    const pinForm = document.getElementById("pinForm");
     const authMessage = document.getElementById("authMessage");
-    const pinInput = document.getElementById("pinInput");
-    const pinConfirmInput = document.getElementById("pinConfirmInput");
-    const pinConfirmField = document.getElementById("pinConfirmField");
-    const pinLabel = document.getElementById("pinLabel");
-    const pinSubmitBtn = document.getElementById("pinSubmitBtn");
     const userBar = document.getElementById("userBar");
     const fileProtocolWarning = document.getElementById("fileProtocolWarning");
     const debugLog = document.getElementById("debugLog");
-    const forcePinBtn = document.getElementById("forcePinBtn");
 
     let entries = [];
     let currentUser = null;
-    let currentPinHash = "";
-    let pinSetupMode = false;
-    let registrationPinSetupActive = false;
     let unsubscribeEntries = null;
     let storageMode = "cloud";
     let selectedMonth = isoToday().slice(0, 7);
@@ -910,66 +876,13 @@
       return db.collection(`users/${currentUser.uid}/timeEntries`);
     }
 
-    function securityDoc() {
-      return db.doc(`users/${currentUser.uid}/settings/security`);
-    }
-
-    async function hashPin(pin) {
-      const scope = currentUser?.uid || "local";
-      const data = new TextEncoder().encode(`${scope}:${pin}`);
-      const digest = await crypto.subtle.digest("SHA-256", data);
-      return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-    }
-
-    function validatePin(pin) {
-      return /^\d{4,6}$/.test(pin);
-    }
-
-    function pinSessionKey() {
-      return `zeiterfassung.pinUnlocked.${currentUser?.uid || "local"}`;
-    }
-
     function showLogin(message = "", type = "") {
       debug("zeige Login");
       appRoot.classList.add("hidden");
       authScreen.classList.remove("hidden");
       loginForm.classList.remove("hidden");
-      pinForm.classList.add("hidden");
-      forcePinBtn.classList.toggle("hidden", !currentUser);
       fileProtocolWarning.classList.toggle("visible", window.location.protocol === "file:");
       setAuthMessage(message, type);
-    }
-
-    function showPinSetup(message = "Bitte vergib eine PIN mit 4 bis 6 Ziffern.") {
-      debug("zeige PIN-Vergabe");
-      pinSetupMode = true;
-      appRoot.classList.add("hidden");
-      authScreen.classList.remove("hidden");
-      loginForm.classList.add("hidden");
-      pinForm.classList.remove("hidden");
-      pinConfirmField.classList.remove("hidden");
-      pinLabel.textContent = "Neue PIN";
-      pinSubmitBtn.textContent = "PIN speichern";
-      pinInput.value = "";
-      pinConfirmInput.value = "";
-      setAuthMessage(message);
-      pinInput.focus();
-    }
-
-    function showPinUnlock(message = "Bitte PIN eingeben.") {
-      debug("zeige PIN-Abfrage");
-      pinSetupMode = false;
-      appRoot.classList.add("hidden");
-      authScreen.classList.remove("hidden");
-      loginForm.classList.add("hidden");
-      pinForm.classList.remove("hidden");
-      pinConfirmField.classList.add("hidden");
-      pinLabel.textContent = "PIN";
-      pinSubmitBtn.textContent = "Entsperren";
-      pinInput.value = "";
-      pinConfirmInput.value = "";
-      setAuthMessage(message);
-      pinInput.focus();
     }
 
     function showApp() {
@@ -977,7 +890,6 @@
       authScreen.classList.add("hidden");
       appRoot.classList.remove("hidden");
       userBar.textContent = currentUser?.email ? `Cloud: ${currentUser.email}` : "Cloud";
-      document.getElementById("lockBtn").classList.remove("hidden");
       setAuthMessage("");
       resetForm();
       render();
@@ -1320,27 +1232,13 @@
       URL.revokeObjectURL(url);
     }
 
-    async function loadSecurityState(user) {
-      debug(`lade PIN-Status fuer ${user.email || user.uid}`);
+    async function loadCloudState(user) {
+      debug(`lade Cloud-Daten fuer ${user.email || user.uid}`);
       storageMode = "cloud";
       currentUser = user;
-      const security = await securityDoc().get();
-      currentPinHash = security.exists ? security.get("pinHash") || "" : "";
-      debug(currentPinHash ? "PIN existiert" : "keine PIN gefunden");
       await migrateLocalEntries();
       subscribeEntries();
-
-      const resetEmail = sessionStorage.getItem("zeiterfassung.resetPinAfterLogin");
-      if (!currentPinHash || resetEmail === user.email) {
-        sessionStorage.removeItem("zeiterfassung.resetPinAfterLogin");
-        showPinSetup();
-        return;
-      }
-      if (sessionStorage.getItem(pinSessionKey()) === "1") {
-        showApp();
-        return;
-      }
-      showPinUnlock();
+      showApp();
     }
 
     async function loginWithEmail() {
@@ -1353,7 +1251,7 @@
       setAuthMessage("Anmeldung laeuft...");
       debug(`Login startet: ${email}`);
       const credential = await auth.signInWithEmailAndPassword(email, password);
-      setAuthMessage("Angemeldet. PIN wird geladen...");
+      setAuthMessage("Angemeldet. Daten werden geladen...");
       debug(`Login erfolgreich: ${credential.user?.uid || "ohne uid"}`);
       return credential;
     }
@@ -1369,11 +1267,8 @@
       debug(`Registrierung startet: ${email}`);
       const credential = await auth.createUserWithEmailAndPassword(email, password);
       currentUser = credential.user;
-      registrationPinSetupActive = true;
       debug(`Registrierung erfolgreich: ${credential.user?.uid || "ohne uid"}`);
-      forcePinBtn.classList.remove("hidden");
       storageMode = "cloud";
-      showPinSetup("Konto erstellt. Bitte vergib jetzt deine App-PIN.");
       return credential;
     }
 
@@ -1384,48 +1279,6 @@
       }
       await auth.sendPasswordResetEmail(email);
       setAuthMessage("Reset-Mail wurde gesendet. Bitte Postfach pruefen.", "success");
-    }
-
-    async function handlePinSubmit() {
-      const pin = pinInput.value.trim();
-      if (!validatePin(pin)) {
-        setAuthMessage("Die PIN muss 4 bis 6 Ziffern haben.", "error");
-        return;
-      }
-
-      const candidateHash = await hashPin(pin);
-      if (pinSetupMode) {
-        const confirmPin = pinConfirmInput.value.trim();
-        if (pin !== confirmPin) {
-          setAuthMessage("Die beiden PINs stimmen nicht ueberein.", "error");
-          return;
-        }
-        setAuthMessage("PIN wird gespeichert...");
-        debug("PIN speichern startet");
-        if (storageMode === "cloud" && currentUser) {
-          await securityDoc().set({
-            pinHash: candidateHash,
-            pinUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
-        }
-        currentPinHash = candidateHash;
-        registrationPinSetupActive = false;
-        debug("PIN gespeichert");
-        if (storageMode === "cloud" && currentUser) {
-          await migrateLocalEntries();
-          subscribeEntries();
-        }
-        sessionStorage.setItem(pinSessionKey(), "1");
-        showApp();
-        return;
-      }
-
-      if (candidateHash !== currentPinHash) {
-        setAuthMessage("PIN ist falsch.", "error");
-        return;
-      }
-      sessionStorage.setItem(pinSessionKey(), "1");
-      showApp();
     }
 
     function handleAuthError(error) {
@@ -1506,10 +1359,6 @@
 
     document.getElementById("resetBtn").addEventListener("click", resetForm);
     document.getElementById("exportBtn").addEventListener("click", exportCsv);
-    document.getElementById("lockBtn").addEventListener("click", () => {
-      sessionStorage.removeItem(pinSessionKey());
-      showPinUnlock("App gesperrt. Bitte PIN eingeben.");
-    });
     document.getElementById("logoutBtn").addEventListener("click", () => {
       auth.signOut();
     });
@@ -1552,40 +1401,6 @@
       }
     });
 
-    forcePinBtn.addEventListener("click", () => {
-      if (!currentUser) {
-        setAuthMessage("Noch kein Benutzer angemeldet.", "error");
-        return;
-      }
-      registrationPinSetupActive = true;
-      showPinSetup("Bitte vergib jetzt deine App-PIN.");
-    });
-
-    pinForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      try {
-        await handlePinSubmit();
-      } catch (error) {
-        handleAuthError(error);
-      }
-    });
-
-    document.getElementById("forgotPinBtn").addEventListener("click", async () => {
-      if (!currentUser?.email) return;
-      try {
-        sessionStorage.setItem("zeiterfassung.resetPinAfterLogin", currentUser.email);
-        await auth.sendPasswordResetEmail(currentUser.email);
-        await auth.signOut();
-        showLogin("Reset-Mail wurde gesendet. Melde dich danach wieder an und vergib eine neue PIN.", "success");
-      } catch (error) {
-        handleAuthError(error);
-      }
-    });
-
-    document.getElementById("pinLogoutBtn").addEventListener("click", () => {
-      auth.signOut();
-    });
-
     auth.onAuthStateChanged(async (user) => {
       debug(user ? `Auth-State: angemeldet ${user.email || user.uid}` : "Auth-State: abgemeldet");
       if (unsubscribeEntries) {
@@ -1594,22 +1409,15 @@
       }
       entries = [];
       currentUser = user;
-      currentPinHash = "";
 
       if (!user) {
-        registrationPinSetupActive = false;
         storageMode = "cloud";
         showLogin();
         return;
       }
 
-      if (registrationPinSetupActive && currentUser?.uid === user.uid) {
-        debug("Auth-State ignoriert, PIN-Vergabe nach Registrierung ist aktiv");
-        return;
-      }
-
       try {
-        await loadSecurityState(user);
+        await loadCloudState(user);
       } catch (error) {
         handleAuthError(error);
       }
