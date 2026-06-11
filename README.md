@@ -9,13 +9,11 @@ Statische Web-App zur Arbeitszeiterfassung auf Basis des bisherigen Excel-Makros
 - Berechnung der Gesamt-Anwesenheit
 - Automatischer Abzug von `0,75 h`, wenn die Gesamt-Anwesenheit über `6 h` liegt
 - Netto-Zeit wird ab mehr als `9,99 h` rot hervorgehoben
-- Lokale Speicherung im Browser
 - CSV-Export für Excel
 - App-Icon und Web-App-Manifest für Installation auf Handy/Desktop
 - Cloud-Speicherung mit Firebase Auth und Firestore
-- Nutzung ohne Konto mit lokaler Speicherung
 - Konto-Login nur fuer eigene Cloud-Daten und Zugriff von mehreren Geraeten
-- Lokale oder Cloud-PIN als App-Sperre
+- Cloud-PIN als App-Sperre
 - Passwort-Reset per E-Mail, falls PIN/Passwort vergessen wurde
 
 ## Nutzung

@@ -658,13 +658,12 @@
   <section class="login-screen" id="authScreen">
     <div class="auth-card">
       <h1>Zeiterfassung</h1>
-      <p id="authIntro">Nutze die App lokal oder melde dich an, um deine Cloud-Daten auf mehreren Geraeten zu sehen.</p>
+      <p id="authIntro">Melde dich an, um deine Cloud-Daten auf mehreren Geraeten zu sehen.</p>
       <div class="error" id="fileProtocolWarning">
         Die App wurde als Datei geoeffnet. Konto/Login funktioniert nur ueber https://jorgepnt-design.github.io/zeiterfassung/ oder localhost.
       </div>
 
       <form class="auth-form" id="loginForm">
-        <button class="btn btn-primary" id="localStartBtn" type="button">Lokal starten</button>
         <div class="field">
           <label for="authEmail">E-Mail</label>
           <input id="authEmail" type="email" autocomplete="email" required />
@@ -876,7 +875,7 @@
     let pinSetupMode = false;
     let registrationPinSetupActive = false;
     let unsubscribeEntries = null;
-    let storageMode = "local";
+    let storageMode = "cloud";
     let selectedMonth = isoToday().slice(0, 7);
 
     function debug(message) {
@@ -977,8 +976,8 @@
       debug("zeige App");
       authScreen.classList.add("hidden");
       appRoot.classList.remove("hidden");
-      userBar.textContent = currentUser?.email ? `Cloud: ${currentUser.email}` : "Lokal";
-      document.getElementById("lockBtn").classList.toggle("hidden", storageMode === "local");
+      userBar.textContent = currentUser?.email ? `Cloud: ${currentUser.email}` : "Cloud";
+      document.getElementById("lockBtn").classList.remove("hidden");
       setAuthMessage("");
       resetForm();
       render();
@@ -1120,19 +1119,6 @@
       } catch {
         return [];
       }
-    }
-
-    function saveLocalEntries() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    }
-
-    function loadLocalMode() {
-      storageMode = "local";
-      currentUser = null;
-      currentPinHash = "";
-      entries = loadLocalEntries();
-      render();
-      showApp();
     }
 
     async function migrateLocalEntries() {
@@ -1286,13 +1272,8 @@
       const entry = entries.find((item) => item.id === id);
       if (!entry) return;
       if (!confirm(`Eintrag vom ${formatDate(entry.date)} löschen?`)) return;
-      if (storageMode === "cloud" && currentUser) {
-        await entriesCollection().doc(id).delete();
-      } else {
-        entries = entries.filter((item) => item.id !== id);
-        saveLocalEntries();
-        render();
-      }
+      if (!currentUser) return;
+      await entriesCollection().doc(id).delete();
       if (fields.id.value === id) resetForm();
     }
 
@@ -1443,10 +1424,6 @@
         setAuthMessage("PIN ist falsch.", "error");
         return;
       }
-      if (storageMode === "local") {
-        entries = loadLocalEntries();
-        render();
-      }
       sessionStorage.setItem(pinSessionKey(), "1");
       showApp();
     }
@@ -1488,17 +1465,11 @@
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        if (storageMode === "cloud" && currentUser) {
-          await entriesCollection().doc(entry.id).set(entry, { merge: true });
-        } else if (existingId) {
-          entries = entries.map((item) => item.id === existingId ? entry : item);
-          saveLocalEntries();
-          render();
-        } else {
-          entries.push(entry);
-          saveLocalEntries();
-          render();
+        if (!currentUser) {
+          showError("Bitte zuerst in der Cloud anmelden.");
+          return;
         }
+        await entriesCollection().doc(entry.id).set(entry, { merge: true });
         resetForm();
       } catch (error) {
         showError(error.message);
@@ -1536,45 +1507,24 @@
     document.getElementById("resetBtn").addEventListener("click", resetForm);
     document.getElementById("exportBtn").addEventListener("click", exportCsv);
     document.getElementById("lockBtn").addEventListener("click", () => {
-      if (storageMode === "local") {
-        showLogin("Lokaler Modus beendet.");
-        return;
-      }
       sessionStorage.removeItem(pinSessionKey());
       showPinUnlock("App gesperrt. Bitte PIN eingeben.");
     });
     document.getElementById("logoutBtn").addEventListener("click", () => {
-      if (storageMode === "cloud") auth.signOut();
-      else {
-        showLogin("Lokaler Modus beendet.");
-      }
+      auth.signOut();
     });
     document.getElementById("clearBtn").addEventListener("click", async () => {
       if (!entries.length) return;
       if (!confirm("Alle Zeiterfassungs-Einträge löschen?")) return;
-      if (storageMode === "cloud" && currentUser) {
-        const batch = db.batch();
-        entries.forEach((entry) => batch.delete(entriesCollection().doc(entry.id)));
-        await batch.commit();
-      } else {
-        entries = [];
-        saveLocalEntries();
-        render();
-      }
+      if (!currentUser) return;
+      const batch = db.batch();
+      entries.forEach((entry) => batch.delete(entriesCollection().doc(entry.id)));
+      await batch.commit();
       resetForm();
     });
 
     document.getElementById("todayLabel").textContent = formatDate(isoToday());
     updateMonthOptions();
-
-    document.getElementById("localStartBtn").addEventListener("click", () => {
-      if (unsubscribeEntries) {
-        unsubscribeEntries();
-        unsubscribeEntries = null;
-      }
-      debug("lokaler Start");
-      loadLocalMode();
-    });
 
     loginForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -1633,8 +1583,7 @@
     });
 
     document.getElementById("pinLogoutBtn").addEventListener("click", () => {
-      if (storageMode === "cloud") auth.signOut();
-      else showLogin("Lokaler Modus beendet.");
+      auth.signOut();
     });
 
     auth.onAuthStateChanged(async (user) => {
@@ -1649,10 +1598,8 @@
 
       if (!user) {
         registrationPinSetupActive = false;
-        if (storageMode === "cloud") {
-          storageMode = "local";
-          showLogin();
-        }
+        storageMode = "cloud";
+        showLogin();
         return;
       }
 
