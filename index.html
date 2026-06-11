@@ -658,13 +658,13 @@
   <section class="login-screen" id="authScreen">
     <div class="auth-card">
       <h1>Zeiterfassung</h1>
-      <p id="authIntro">Nutze die App lokal mit PIN oder melde dich an, um deine Cloud-Daten auf mehreren Geraeten zu sehen.</p>
+      <p id="authIntro">Nutze die App lokal oder melde dich an, um deine Cloud-Daten auf mehreren Geraeten zu sehen.</p>
       <div class="error" id="fileProtocolWarning">
         Die App wurde als Datei geoeffnet. Konto/Login funktioniert nur ueber https://jorgepnt-design.github.io/zeiterfassung/ oder localhost.
       </div>
 
       <form class="auth-form" id="loginForm">
-        <button class="btn btn-primary" id="localStartBtn" type="button">Lokal mit PIN starten</button>
+        <button class="btn btn-primary" id="localStartBtn" type="button">Lokal starten</button>
         <div class="field">
           <label for="authEmail">E-Mail</label>
           <input id="authEmail" type="email" autocomplete="email" required />
@@ -915,10 +915,6 @@
       return db.doc(`users/${currentUser.uid}/settings/security`);
     }
 
-    function localPinHashKey() {
-      return "zeiterfassung.localPinHash.v1";
-    }
-
     async function hashPin(pin) {
       const scope = currentUser?.uid || "local";
       const data = new TextEncoder().encode(`${scope}:${pin}`);
@@ -982,6 +978,7 @@
       authScreen.classList.add("hidden");
       appRoot.classList.remove("hidden");
       userBar.textContent = currentUser?.email ? `Cloud: ${currentUser.email}` : "Lokal";
+      document.getElementById("lockBtn").classList.toggle("hidden", storageMode === "local");
       setAuthMessage("");
       resetForm();
       render();
@@ -1132,18 +1129,10 @@
     function loadLocalMode() {
       storageMode = "local";
       currentUser = null;
-      currentPinHash = localStorage.getItem(localPinHashKey()) || "";
+      currentPinHash = "";
       entries = loadLocalEntries();
       render();
-      if (!currentPinHash) {
-        showPinSetup("Bitte vergib eine lokale App-PIN.");
-        return;
-      }
-      if (sessionStorage.getItem(pinSessionKey()) === "1") {
-        showApp();
-        return;
-      }
-      showPinUnlock("Bitte lokale PIN eingeben.");
+      showApp();
     }
 
     async function migrateLocalEntries() {
@@ -1437,8 +1426,6 @@
             pinHash: candidateHash,
             pinUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
           }, { merge: true });
-        } else {
-          localStorage.setItem(localPinHashKey(), candidateHash);
         }
         currentPinHash = candidateHash;
         registrationPinSetupActive = false;
@@ -1549,14 +1536,17 @@
     document.getElementById("resetBtn").addEventListener("click", resetForm);
     document.getElementById("exportBtn").addEventListener("click", exportCsv);
     document.getElementById("lockBtn").addEventListener("click", () => {
+      if (storageMode === "local") {
+        showLogin("Lokaler Modus beendet.");
+        return;
+      }
       sessionStorage.removeItem(pinSessionKey());
       showPinUnlock("App gesperrt. Bitte PIN eingeben.");
     });
     document.getElementById("logoutBtn").addEventListener("click", () => {
       if (storageMode === "cloud") auth.signOut();
       else {
-        sessionStorage.removeItem(pinSessionKey());
-        showLogin("Lokaler Modus gesperrt.");
+        showLogin("Lokaler Modus beendet.");
       }
     });
     document.getElementById("clearBtn").addEventListener("click", async () => {
