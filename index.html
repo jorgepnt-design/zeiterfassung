@@ -243,6 +243,14 @@
       gap: 16px;
     }
 
+    .range-field {
+      display: none;
+    }
+
+    .range-field.visible {
+      display: grid;
+    }
+
     label {
       color: var(--muted);
       font-size: 0.86rem;
@@ -739,6 +747,11 @@
             <input id="entryDate" type="date" required />
           </div>
 
+          <div class="field range-field" id="entryEndDateField">
+            <label for="entryEndDate">Bis Datum</label>
+            <input id="entryEndDate" type="date" />
+          </div>
+
           <div class="field">
             <label for="entryType">Art</label>
             <select id="entryType">
@@ -855,6 +868,7 @@
     const fields = {
       id: document.getElementById("entryId"),
       date: document.getElementById("entryDate"),
+      endDate: document.getElementById("entryEndDate"),
       type: document.getElementById("entryType"),
       kommt1: document.getElementById("kommt1"),
       geht1: document.getElementById("geht1"),
@@ -862,6 +876,7 @@
       geht2: document.getElementById("geht2")
     };
     const timeEntryFields = document.getElementById("timeEntryFields");
+    const entryEndDateField = document.getElementById("entryEndDateField");
     const grossPreview = document.getElementById("grossPreview");
     const deductionPreview = document.getElementById("deductionPreview");
     const netPreview = document.getElementById("netPreview");
@@ -1010,6 +1025,7 @@
     function collectValues() {
       return {
         date: fields.date.value,
+        endDate: fields.endDate.value,
         type: fields.type.value,
         kommt1: fields.kommt1.value,
         geht1: fields.geht1.value,
@@ -1026,6 +1042,22 @@
       const [year, month, day] = isoDate.split("-").map(Number);
       const date = new Date(year, month - 1, day);
       return `${weekdaysShort[date.getDay()]} ${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
+    }
+
+    function isoDateRange(startIso, endIso) {
+      const [startYear, startMonth, startDay] = startIso.split("-").map(Number);
+      const [endYear, endMonth, endDay] = (endIso || startIso).split("-").map(Number);
+      const start = new Date(startYear, startMonth - 1, startDay);
+      const end = new Date(endYear, endMonth - 1, endDay);
+      if (end < start) {
+        throw new Error("Das Bis-Datum darf nicht vor dem Startdatum liegen.");
+      }
+
+      const days = [];
+      for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+        days.push(toIsoDate(cursor));
+      }
+      return days;
     }
 
     function formatMonth(monthKey) {
@@ -1179,6 +1211,7 @@
       fields.id.value = "";
       fields.type.value = "work";
       fields.date.value = isoToday();
+      fields.endDate.value = "";
       formTitle.textContent = "Neuer Eintrag";
       saveBtn.textContent = "Eintragen";
       updateEntryTypeUi();
@@ -1189,12 +1222,16 @@
     function updateEntryTypeUi() {
       const isWork = fields.type.value === "work";
       timeEntryFields.classList.toggle("hidden", !isWork);
+      entryEndDateField.classList.toggle("visible", !isWork);
       fields.kommt1.required = isWork;
       if (!isWork) {
+        if (!fields.endDate.value) fields.endDate.value = fields.date.value;
         fields.kommt1.value = "";
         fields.geht1.value = "";
         fields.kommt2.value = "";
         fields.geht2.value = "";
+      } else {
+        fields.endDate.value = "";
       }
     }
 
@@ -1257,6 +1294,7 @@
       if (!entry) return;
       fields.id.value = entry.id;
       fields.date.value = entry.date;
+      fields.endDate.value = "";
       fields.type.value = entryType(entry);
       updateEntryTypeUi();
       fields.kommt1.value = entry.kommt1 || "";
@@ -1397,10 +1435,14 @@
         }
 
         const existingId = fields.id.value;
+        const datesToSave = values.type !== "work" && !existingId
+          ? isoDateRange(values.date, values.endDate || values.date)
+          : [values.date];
         const entry = {
           id: existingId || createId(),
           createdAt: existingId ? entries.find((item) => item.id === existingId)?.createdAt || new Date().toISOString() : new Date().toISOString(),
           ...values,
+          endDate: "",
           kommt1: values.type === "work" ? values.kommt1 : "",
           geht1: values.type === "work" ? values.geht1 : "",
           kommt2: values.type === "work" ? values.kommt2 : "",
@@ -1416,7 +1458,21 @@
           showError("Bitte zuerst in der Cloud anmelden.");
           return;
         }
-        await entriesCollection().doc(entry.id).set(entry, { merge: true });
+        if (datesToSave.length === 1) {
+          await entriesCollection().doc(entry.id).set({ ...entry, date: datesToSave[0] }, { merge: true });
+        } else {
+          const batch = db.batch();
+          datesToSave.forEach((date) => {
+            const id = createId();
+            batch.set(entriesCollection().doc(id), {
+              ...entry,
+              id,
+              date,
+              createdAt: new Date().toISOString()
+            }, { merge: true });
+          });
+          await batch.commit();
+        }
         resetForm();
       } catch (error) {
         showError(error.message);
@@ -1428,6 +1484,12 @@
     fields.type.addEventListener("change", () => {
       updateEntryTypeUi();
       updatePreview();
+    });
+
+    fields.date.addEventListener("change", () => {
+      if (fields.type.value !== "work" && !fields.endDate.value) {
+        fields.endDate.value = fields.date.value;
+      }
     });
 
     document.querySelectorAll("[data-now-target]").forEach((button) => {
