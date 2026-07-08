@@ -6,8 +6,9 @@ Statische Web-App zur Arbeitszeiterfassung auf Basis des bisherigen Excel-Makros
 
 - Eingabe von `Kommt` und `Geht`
 - Optionaler zweiter Zeitblock
+- Eintragen von `Urlaub` und `Gleittag`
 - Berechnung der Gesamt-Anwesenheit
-- Automatischer Abzug von `0,75 h`, wenn die Gesamt-Anwesenheit über `6 h` liegt
+- SAP-aehnliche Pausenbewertung mit Mindestpause und tatsaechlich genommener Pause
 - Netto-Zeit wird ab mehr als `9,99 h` rot hervorgehoben
 - CSV-Export für Excel
 - App-Icon und Web-App-Manifest für Installation auf Handy/Desktop

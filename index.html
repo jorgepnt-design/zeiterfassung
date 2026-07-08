@@ -238,6 +238,11 @@
       gap: 7px;
     }
 
+    .time-entry-fields {
+      display: grid;
+      gap: 16px;
+    }
+
     label {
       color: var(--muted);
       font-size: 0.86rem;
@@ -562,6 +567,32 @@
       font-weight: 800;
     }
 
+    .type-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 82px;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 0.82rem;
+      font-weight: 900;
+      background: #eef3f7;
+      color: #263544;
+      border: 1px solid var(--line);
+    }
+
+    .type-badge.vacation {
+      background: #ecfdf5;
+      color: var(--success);
+      border-color: #bbf7d0;
+    }
+
+    .type-badge.flex {
+      background: #fff7e8;
+      color: #7a4b0f;
+      border-color: #f3c779;
+    }
+
     .row-actions {
       display: flex;
       gap: 8px;
@@ -708,29 +739,40 @@
             <input id="entryDate" type="date" required />
           </div>
 
-          <div class="quick-grid">
-            <button class="btn btn-secondary" type="button" data-now-target="kommt1">Jetzt Kommt</button>
-            <button class="btn btn-secondary" type="button" data-now-target="geht1">Jetzt Geht</button>
-            <button class="btn btn-secondary" type="button" data-now-target="kommt2">Jetzt 2. Kommt</button>
-            <button class="btn btn-secondary" type="button" data-now-target="geht2">Jetzt 2. Geht</button>
+          <div class="field">
+            <label for="entryType">Art</label>
+            <select id="entryType">
+              <option value="work">Arbeitszeit</option>
+              <option value="vacation">Urlaub</option>
+              <option value="flex">Gleittag</option>
+            </select>
           </div>
 
-          <div class="field-grid">
-            <div class="field">
-              <label for="kommt1">Kommt</label>
-              <input id="kommt1" type="time" required />
+          <div class="time-entry-fields" id="timeEntryFields">
+            <div class="quick-grid">
+              <button class="btn btn-secondary" type="button" data-now-target="kommt1">Jetzt Kommt</button>
+              <button class="btn btn-secondary" type="button" data-now-target="geht1">Jetzt Geht</button>
+              <button class="btn btn-secondary" type="button" data-now-target="kommt2">Jetzt 2. Kommt</button>
+              <button class="btn btn-secondary" type="button" data-now-target="geht2">Jetzt 2. Geht</button>
             </div>
-            <div class="field">
-              <label for="geht1">Geht</label>
-              <input id="geht1" type="time" />
-            </div>
-            <div class="field">
-              <label for="kommt2">2. Kommt</label>
-              <input id="kommt2" type="time" />
-            </div>
-            <div class="field">
-              <label for="geht2">2. Geht</label>
-              <input id="geht2" type="time" />
+
+            <div class="field-grid">
+              <div class="field">
+                <label for="kommt1">Kommt</label>
+                <input id="kommt1" type="time" required />
+              </div>
+              <div class="field">
+                <label for="geht1">Geht</label>
+                <input id="geht1" type="time" />
+              </div>
+              <div class="field">
+                <label for="kommt2">2. Kommt</label>
+                <input id="kommt2" type="time" />
+              </div>
+              <div class="field">
+                <label for="geht2">2. Geht</label>
+                <input id="geht2" type="time" />
+              </div>
             </div>
           </div>
 
@@ -813,11 +855,13 @@
     const fields = {
       id: document.getElementById("entryId"),
       date: document.getElementById("entryDate"),
+      type: document.getElementById("entryType"),
       kommt1: document.getElementById("kommt1"),
       geht1: document.getElementById("geht1"),
       kommt2: document.getElementById("kommt2"),
       geht2: document.getElementById("geht2")
     };
+    const timeEntryFields = document.getElementById("timeEntryFields");
     const grossPreview = document.getElementById("grossPreview");
     const deductionPreview = document.getElementById("deductionPreview");
     const netPreview = document.getElementById("netPreview");
@@ -917,6 +961,10 @@
     }
 
     function calculate(values) {
+      if (values.type && values.type !== "work") {
+        return { gross: 0, deduction: 0, net: 0, complete: true };
+      }
+
       const start1 = parseTime(values.kommt1);
       const end1 = parseTime(values.geht1);
       const start2 = parseTime(values.kommt2);
@@ -962,6 +1010,7 @@
     function collectValues() {
       return {
         date: fields.date.value,
+        type: fields.type.value,
         kommt1: fields.kommt1.value,
         geht1: fields.geht1.value,
         kommt2: fields.kommt2.value,
@@ -995,6 +1044,26 @@
 
     function isComplete(entry) {
       return entry.complete !== false;
+    }
+
+    function entryType(entry) {
+      return entry.type || "work";
+    }
+
+    function isWorkEntry(entry) {
+      return entryType(entry) === "work";
+    }
+
+    function typeLabel(type) {
+      if (type === "vacation") return "Urlaub";
+      if (type === "flex") return "Gleittag";
+      return "Arbeitszeit";
+    }
+
+    function typeBadgeClass(type) {
+      if (type === "vacation") return "vacation";
+      if (type === "flex") return "flex";
+      return "";
     }
 
     function sortValue(entry) {
@@ -1075,7 +1144,7 @@
 
     function renderOpenBanner(monthEntries) {
       const openEntry = [...monthEntries]
-        .filter((entry) => entry.kommt1 && !entry.geht1)
+        .filter((entry) => isWorkEntry(entry) && entry.kommt1 && !entry.geht1)
         .sort((a, b) => a.date.localeCompare(b.date) || sortValue(a).localeCompare(sortValue(b)))[0];
       if (!openEntry) {
         openBanner.classList.remove("visible");
@@ -1090,27 +1159,43 @@
     }
 
     function renderMonthOverview(monthEntries) {
-      const completeEntries = monthEntries.filter(isComplete);
+      const completeEntries = monthEntries.filter((entry) => isWorkEntry(entry) && isComplete(entry));
       const workDays = new Set(completeEntries.map((entry) => entry.date)).size;
+      const vacationDays = new Set(monthEntries.filter((entry) => entryType(entry) === "vacation").map((entry) => entry.date)).size;
+      const flexDays = new Set(monthEntries.filter((entry) => entryType(entry) === "flex").map((entry) => entry.date)).size;
       const netTotal = round2(completeEntries.reduce((sum, entry) => sum + (Number(entry.net) || 0), 0));
       const avg = workDays ? round2(netTotal / workDays) : 0;
 
       monthOverview.innerHTML = `
         <div class="overview-item"><span>Netto Monat</span><strong>${formatNumber(netTotal)} h</strong></div>
         <div class="overview-item"><span>Arbeitstage</span><strong>${workDays}</strong></div>
-        <div class="overview-item"><span>Durchschnitt</span><strong>${formatNumber(avg)} h</strong></div>
-        <div class="overview-item"><span>Einträge</span><strong>${monthEntries.length}</strong></div>
+        <div class="overview-item"><span>Urlaub</span><strong>${vacationDays}</strong></div>
+        <div class="overview-item"><span>Gleittage</span><strong>${flexDays}</strong></div>
       `;
     }
 
     function resetForm() {
       form.reset();
       fields.id.value = "";
+      fields.type.value = "work";
       fields.date.value = isoToday();
       formTitle.textContent = "Neuer Eintrag";
       saveBtn.textContent = "Eintragen";
+      updateEntryTypeUi();
       showError("");
       updatePreview();
+    }
+
+    function updateEntryTypeUi() {
+      const isWork = fields.type.value === "work";
+      timeEntryFields.classList.toggle("hidden", !isWork);
+      fields.kommt1.required = isWork;
+      if (!isWork) {
+        fields.kommt1.value = "";
+        fields.geht1.value = "";
+        fields.kommt2.value = "";
+        fields.geht2.value = "";
+      }
     }
 
     function render() {
@@ -1129,13 +1214,14 @@
       const rows = sorted.map((entry) => `
           <tr>
             <td class="date-cell">${formatDate(entry.date)}</td>
-            <td class="time-cell">${entry.kommt1}</td>
-            <td class="time-cell">${entry.geht1 || '<span class="status-open">offen</span>'}</td>
-            <td class="time-cell">${entry.kommt2 || "-"}</td>
-            <td class="time-cell">${entry.geht2 || "-"}</td>
-            <td class="number-cell">${isComplete(entry) ? formatNumber(entry.gross) : "-"}</td>
-            <td class="number-cell">${isComplete(entry) ? formatNumber(entry.deduction) : "-"}</td>
-            <td class="net-cell">${isComplete(entry) ? `<span class="net-badge ${entry.net >= 10 ? "netto-high" : ""}">${formatNumber(entry.net)}</span>` : "-"}</td>
+            <td><span class="type-badge ${typeBadgeClass(entryType(entry))}">${typeLabel(entryType(entry))}</span></td>
+            <td class="time-cell">${isWorkEntry(entry) ? entry.kommt1 : "-"}</td>
+            <td class="time-cell">${isWorkEntry(entry) ? entry.geht1 || '<span class="status-open">offen</span>' : "-"}</td>
+            <td class="time-cell">${isWorkEntry(entry) ? entry.kommt2 || "-" : "-"}</td>
+            <td class="time-cell">${isWorkEntry(entry) ? entry.geht2 || "-" : "-"}</td>
+            <td class="number-cell">${isWorkEntry(entry) && isComplete(entry) ? formatNumber(entry.gross) : "-"}</td>
+            <td class="number-cell">${isWorkEntry(entry) && isComplete(entry) ? formatNumber(entry.deduction) : "-"}</td>
+            <td class="net-cell">${isWorkEntry(entry) && isComplete(entry) ? `<span class="net-badge ${entry.net >= 10 ? "netto-high" : ""}">${formatNumber(entry.net)}</span>` : "-"}</td>
             <td>
               <div class="row-actions">
                 <button class="icon-btn" type="button" data-edit="${entry.id}" title="Eintrag bearbeiten">✎</button>
@@ -1150,6 +1236,7 @@
           <thead>
             <tr>
               <th>Datum</th>
+              <th>Art</th>
               <th>Kommt 1</th>
               <th>Geht 1</th>
               <th>Kommt 2</th>
@@ -1170,7 +1257,9 @@
       if (!entry) return;
       fields.id.value = entry.id;
       fields.date.value = entry.date;
-      fields.kommt1.value = entry.kommt1;
+      fields.type.value = entryType(entry);
+      updateEntryTypeUi();
+      fields.kommt1.value = entry.kommt1 || "";
       fields.geht1.value = entry.geht1 || "";
       fields.kommt2.value = entry.kommt2 || "";
       fields.geht2.value = entry.geht2 || "";
@@ -1196,26 +1285,27 @@
         return;
       }
 
-      const header = ["DATUM", "KOMMT", "GEHT", "KOMMT", "GEHT", "GESAMT ANWESENHEIT", "ABGEZOGEN", "NETTO"];
+      const header = ["DATUM", "ART", "KOMMT", "GEHT", "KOMMT", "GEHT", "GESAMT ANWESENHEIT", "ABGEZOGEN", "NETTO"];
       const lines = exportEntries.map((entry) => {
-        const complete = isComplete(entry);
+        const complete = isWorkEntry(entry) && isComplete(entry);
         return [
           formatDate(entry.date),
-          entry.kommt1,
-          entry.geht1 || "",
-          entry.kommt2 || "",
-          entry.geht2 || "",
+          typeLabel(entryType(entry)),
+          isWorkEntry(entry) ? entry.kommt1 : "",
+          isWorkEntry(entry) ? entry.geht1 || "" : "",
+          isWorkEntry(entry) ? entry.kommt2 || "" : "",
+          isWorkEntry(entry) ? entry.geht2 || "" : "",
           complete ? formatNumber(entry.gross) : "",
           complete ? formatNumber(entry.deduction) : "",
           complete ? formatNumber(entry.net) : ""
         ];
       });
 
-      const completeEntries = exportEntries.filter(isComplete);
+      const completeEntries = exportEntries.filter((entry) => isWorkEntry(entry) && isComplete(entry));
       const grossTotal = round2(completeEntries.reduce((sum, entry) => sum + (Number(entry.gross) || 0), 0));
       const deductionTotal = round2(completeEntries.reduce((sum, entry) => sum + (Number(entry.deduction) || 0), 0));
       const netTotal = round2(completeEntries.reduce((sum, entry) => sum + (Number(entry.net) || 0), 0));
-      lines.push(["SUMME", "", "", "", "", formatNumber(grossTotal), formatNumber(deductionTotal), formatNumber(netTotal)]);
+      lines.push(["SUMME", "", "", "", "", "", formatNumber(grossTotal), formatNumber(deductionTotal), formatNumber(netTotal)]);
 
       const csv = [header, ...lines]
         .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(";"))
@@ -1301,7 +1391,7 @@
 
       try {
         const result = calculate(values);
-        if (!values.kommt1) {
+        if (values.type === "work" && !values.kommt1) {
           showError("Bitte mindestens die erste Kommt-Zeit eintragen.");
           return;
         }
@@ -1311,6 +1401,10 @@
           id: existingId || createId(),
           createdAt: existingId ? entries.find((item) => item.id === existingId)?.createdAt || new Date().toISOString() : new Date().toISOString(),
           ...values,
+          kommt1: values.type === "work" ? values.kommt1 : "",
+          geht1: values.type === "work" ? values.geht1 : "",
+          kommt2: values.type === "work" ? values.kommt2 : "",
+          geht2: values.type === "work" ? values.geht2 : "",
           gross: result.gross,
           deduction: result.deduction,
           net: result.net,
@@ -1330,6 +1424,11 @@
     });
 
     form.addEventListener("input", updatePreview);
+
+    fields.type.addEventListener("change", () => {
+      updateEntryTypeUi();
+      updatePreview();
+    });
 
     document.querySelectorAll("[data-now-target]").forEach((button) => {
       button.addEventListener("click", () => {
