@@ -444,6 +444,115 @@
       font-variant-numeric: tabular-nums;
     }
 
+    .month-calendar {
+      padding: 14px 18px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .calendar-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .calendar-head h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .calendar-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .legend-dot.vacation {
+      background: var(--success);
+    }
+
+    .legend-dot.flex {
+      background: #d97706;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .calendar-weekday {
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 900;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .calendar-day {
+      min-height: 58px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f8fafc;
+      padding: 7px;
+      font-size: 0.85rem;
+      font-weight: 850;
+      color: var(--text);
+    }
+
+    .calendar-day.empty {
+      border-color: transparent;
+      background: transparent;
+    }
+
+    .calendar-day.weekend {
+      color: #94a3b8;
+      background: #f3f5f7;
+    }
+
+    .calendar-day.vacation {
+      background: #ecfdf5;
+      border-color: #86efac;
+      color: #14532d;
+    }
+
+    .calendar-day.flex {
+      background: #fff7e8;
+      border-color: #f3c779;
+      color: #7a4b0f;
+    }
+
+    .calendar-day.mixed {
+      background: linear-gradient(135deg, #ecfdf5 0 50%, #fff7e8 50% 100%);
+      border-color: #a7cfa4;
+    }
+
+    .calendar-mark {
+      display: block;
+      margin-top: 6px;
+      font-size: 0.72rem;
+      font-weight: 900;
+      line-height: 1.15;
+    }
+
     .open-banner {
       display: none;
       margin: 0 18px 14px;
@@ -676,6 +785,25 @@
         grid-template-columns: 1fr;
       }
 
+      .calendar-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .calendar-grid {
+        gap: 4px;
+      }
+
+      .calendar-day {
+        min-height: 48px;
+        padding: 5px;
+        font-size: 0.78rem;
+      }
+
+      .calendar-mark {
+        font-size: 0.66rem;
+      }
+
       .actions,
       .toolbar {
         width: 100%;
@@ -827,6 +955,7 @@
           </div>
         </div>
         <div class="overview" id="monthOverview"></div>
+        <div class="month-calendar" id="monthCalendar"></div>
         <div class="open-banner" id="openBanner"></div>
         <div class="table-wrap" id="tableWrap"></div>
       </section>
@@ -886,6 +1015,7 @@
     const entryCount = document.getElementById("entryCount");
     const monthFilter = document.getElementById("monthFilter");
     const monthOverview = document.getElementById("monthOverview");
+    const monthCalendar = document.getElementById("monthCalendar");
     const openBanner = document.getElementById("openBanner");
     const formTitle = document.getElementById("formTitle");
     const saveBtn = document.getElementById("saveBtn");
@@ -1044,6 +1174,11 @@
       return `${weekdaysShort[date.getDay()]} ${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
     }
 
+    function isWeekend(date) {
+      const day = date.getDay();
+      return day === 0 || day === 6;
+    }
+
     function isoDateRange(startIso, endIso) {
       const [startYear, startMonth, startDay] = startIso.split("-").map(Number);
       const [endYear, endMonth, endDay] = (endIso || startIso).split("-").map(Number);
@@ -1055,7 +1190,12 @@
 
       const days = [];
       for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
-        days.push(toIsoDate(cursor));
+        if (!isWeekend(cursor)) {
+          days.push(toIsoDate(cursor));
+        }
+      }
+      if (!days.length) {
+        throw new Error("Im gewaehlten Zeitraum liegen keine Arbeitstage von Montag bis Freitag.");
       }
       return days;
     }
@@ -1206,6 +1346,70 @@
       `;
     }
 
+    function renderMonthCalendar(monthEntries) {
+      const [year, month] = selectedMonth.split("-").map(Number);
+      const firstDay = new Date(year, month - 1, 1);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const leadingEmptyDays = (firstDay.getDay() + 6) % 7;
+      const typeByDate = new Map();
+
+      monthEntries.forEach((entry) => {
+        const type = entryType(entry);
+        if (type !== "vacation" && type !== "flex") return;
+        if (!typeByDate.has(entry.date)) typeByDate.set(entry.date, new Set());
+        typeByDate.get(entry.date).add(type);
+      });
+
+      const weekdayHeaders = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+        .map((day) => `<div class="calendar-weekday">${day}</div>`)
+        .join("");
+      const emptyCells = Array.from({ length: leadingEmptyDays }, () => '<div class="calendar-day empty"></div>');
+      const dayCells = Array.from({ length: daysInMonth }, (_, index) => {
+        const day = index + 1;
+        const date = new Date(year, month - 1, day);
+        const iso = toIsoDate(date);
+        const types = typeByDate.get(iso) || new Set();
+        const hasVacation = types.has("vacation");
+        const hasFlex = types.has("flex");
+        const classes = ["calendar-day"];
+        const marks = [];
+
+        if (isWeekend(date)) classes.push("weekend");
+        if (hasVacation && hasFlex) {
+          classes.push("mixed");
+          marks.push("Urlaub", "Gleittag");
+        } else if (hasVacation) {
+          classes.push("vacation");
+          marks.push("Urlaub");
+        } else if (hasFlex) {
+          classes.push("flex");
+          marks.push("Gleittag");
+        }
+
+        return `
+          <div class="${classes.join(" ")}">
+            <span>${day}</span>
+            ${marks.length ? `<span class="calendar-mark">${marks.join("<br>")}</span>` : ""}
+          </div>
+        `;
+      });
+
+      monthCalendar.innerHTML = `
+        <div class="calendar-head">
+          <h3>Monats-Kalender</h3>
+          <div class="calendar-legend">
+            <span class="legend-item"><span class="legend-dot vacation"></span>Urlaub</span>
+            <span class="legend-item"><span class="legend-dot flex"></span>Gleittag</span>
+          </div>
+        </div>
+        <div class="calendar-grid">
+          ${weekdayHeaders}
+          ${emptyCells.join("")}
+          ${dayCells.join("")}
+        </div>
+      `;
+    }
+
     function resetForm() {
       form.reset();
       fields.id.value = "";
@@ -1241,6 +1445,7 @@
       const sorted = [...monthEntries].sort((a, b) => a.date.localeCompare(b.date) || sortValue(a).localeCompare(sortValue(b)));
       entryCount.textContent = monthEntries.length === 1 ? "1 Eintrag im Monat" : `${monthEntries.length} Einträge im Monat`;
       renderMonthOverview(monthEntries);
+      renderMonthCalendar(monthEntries);
       renderOpenBanner(monthEntries);
 
       if (!sorted.length) {

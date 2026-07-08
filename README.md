@@ -7,6 +7,8 @@ Statische Web-App zur Arbeitszeiterfassung auf Basis des bisherigen Excel-Makros
 - Eingabe von `Kommt` und `Geht`
 - Optionaler zweiter Zeitblock
 - Eintragen von `Urlaub` und `Gleittag`, auch fuer mehrere Tage auf einmal
+- Mehrtages-Eintraege fuer Urlaub/Gleittag speichern nur Montag bis Freitag
+- Monats-Kalender mit farblicher Anzeige von Urlaub und Gleittagen
 - Berechnung der Gesamt-Anwesenheit
 - SAP-aehnliche Pausenbewertung mit Mindestpause und tatsaechlich genommener Pause
 - Netto-Zeit wird ab mehr als `9,99 h` rot hervorgehoben
