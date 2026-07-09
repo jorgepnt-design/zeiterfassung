@@ -1158,7 +1158,7 @@
 
       const gross = minutesToHours(grossMinutes);
       const deduction = minutesToHours(missingBreakMinutes);
-      const net = round2(gross - deduction);
+      const net = minutesToHours(grossMinutes - missingBreakMinutes);
 
       return { gross, deduction, net, complete: true };
     }
