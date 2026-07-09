@@ -52,7 +52,7 @@
     }
 
     .app {
-      width: min(1180px, calc(100% - 32px));
+      width: min(1440px, calc(100% - 32px));
       margin: 0 auto;
       padding: 28px 0 40px;
     }
@@ -191,7 +191,7 @@
 
     .layout {
       display: grid;
-      grid-template-columns: minmax(300px, 410px) minmax(0, 1fr);
+      grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
       gap: 18px;
       align-items: start;
     }
@@ -589,14 +589,14 @@
 
     table {
       width: 100%;
-      min-width: 840px;
+      min-width: 760px;
       border-collapse: separate;
       border-spacing: 0;
     }
 
     th,
     td {
-      padding: 11px 12px;
+      padding: 10px 9px;
       border-bottom: 1px solid var(--line);
       text-align: left;
       white-space: nowrap;
@@ -629,6 +629,21 @@
 
     tr:last-child td {
       border-bottom: 0;
+    }
+
+    th:first-child,
+    td:first-child {
+      width: 150px;
+    }
+
+    th:nth-child(2),
+    td:nth-child(2) {
+      width: 112px;
+    }
+
+    th:last-child,
+    td:last-child {
+      width: 150px;
     }
 
     .date-cell {
