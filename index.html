@@ -183,6 +183,12 @@
       font-size: 0.9rem;
     }
 
+    .build-info {
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
     .layout {
       display: grid;
       grid-template-columns: minmax(300px, 410px) minmax(0, 1fr);
@@ -853,6 +859,7 @@
         <p class="subtitle">Arbeitszeiten eintragen, Pausenabzug berechnen und als Excel-kompatible CSV exportieren.</p>
       </div>
       <div class="toolbar">
+        <div class="build-info" id="buildInfo">Build 2026-07-09-1238</div>
         <div class="userbar" id="userBar"></div>
         <button class="btn btn-secondary" id="exportBtn" type="button" title="CSV herunterladen">Export CSV</button>
         <button class="btn btn-secondary" id="logoutBtn" type="button" title="Abmelden">Abmelden</button>
@@ -1327,10 +1334,45 @@
       localStorage.setItem(marker, "1");
     }
 
+    async function syncCalculatedEntries(snapshotEntries) {
+      if (!currentUser) return;
+      const updates = [];
+      snapshotEntries.forEach((entry) => {
+        if (!isWorkEntry(entry) || !isComplete(entry)) return;
+        const metrics = entryMetrics(entry);
+        if (!metrics.complete) return;
+        const storedGross = Number(entry.gross) || 0;
+        const storedDeduction = Number(entry.deduction) || 0;
+        const storedNet = Number(entry.net) || 0;
+        if (
+          storedGross !== metrics.gross ||
+          storedDeduction !== metrics.deduction ||
+          storedNet !== metrics.net
+        ) {
+          updates.push({ entry, metrics });
+        }
+      });
+      if (!updates.length) return;
+
+      const batch = db.batch();
+      updates.forEach(({ entry, metrics }) => {
+        batch.set(entriesCollection().doc(entry.id), {
+          gross: metrics.gross,
+          deduction: metrics.deduction,
+          net: metrics.net,
+          calculatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      });
+      debug(`korrigiere ${updates.length} gespeicherte Zeitwerte`);
+      await batch.commit();
+    }
+
     function subscribeEntries() {
       if (unsubscribeEntries) unsubscribeEntries();
       unsubscribeEntries = entriesCollection().onSnapshot((snapshot) => {
         entries = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        syncCalculatedEntries(entries).catch((error) => debug(`Berechnungskorrektur fehlgeschlagen: ${error.message || error}`));
         render();
       }, (error) => {
         showError(error.message || "Fehler beim Laden der Cloud-Daten.");
