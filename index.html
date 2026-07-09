@@ -1134,18 +1134,29 @@
         throw new Error("Die zweite Geht-Zeit muss nach der zweiten Kommt-Zeit liegen.");
       }
 
-      const blockMinutes1 = end1 - start1;
-      const blockMinutes2 = values.kommt2 && values.geht2 ? end2 - start2 : 0;
-      const actualBreakMinutes = values.kommt2 && values.geht2 ? Math.max(0, start2 - end1) : 0;
-      const spanMinutes = (values.kommt2 && values.geht2 ? end2 : end1) - start1;
-      let missingBreakMinutes = 0;
-      if (spanMinutes > 9 * 60 && values.kommt2 && values.geht2 && end1 >= 14 * 60 && actualBreakMinutes < 30) {
-        missingBreakMinutes = 30;
-      } else {
-        const minimumBreakMinutes = spanMinutes > 9 * 60 ? 45 : spanMinutes > 6 * 60 ? 30 : 0;
-        missingBreakMinutes = Math.max(0, minimumBreakMinutes - actualBreakMinutes);
+      const hasSecondBlock = Boolean(values.kommt2 && values.geht2);
+      if (hasSecondBlock && start2 < end1) {
+        throw new Error("Die zweite Kommt-Zeit muss nach der ersten Geht-Zeit liegen.");
       }
-      const gross = minutesToHours(blockMinutes1 + blockMinutes2);
+
+      const blockMinutes1 = end1 - start1;
+      const blockMinutes2 = hasSecondBlock ? end2 - start2 : 0;
+      const grossMinutes = blockMinutes1 + blockMinutes2;
+      const actualBreakMinutes = hasSecondBlock ? start2 - end1 : 0;
+      let missingBreakMinutes = 0;
+
+      if (grossMinutes > 6 * 60) {
+        const maxDeductionUntilSixHours = grossMinutes - 6 * 60;
+        if (!hasSecondBlock) {
+          missingBreakMinutes = maxDeductionUntilSixHours;
+        } else if (end1 >= 14 * 60 && actualBreakMinutes < 30) {
+          missingBreakMinutes = Math.min(30, maxDeductionUntilSixHours);
+        } else {
+          missingBreakMinutes = Math.min(Math.max(0, 45 - actualBreakMinutes), maxDeductionUntilSixHours);
+        }
+      }
+
+      const gross = minutesToHours(grossMinutes);
       const deduction = minutesToHours(missingBreakMinutes);
       const net = round2(gross - deduction);
 
