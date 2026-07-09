@@ -1237,6 +1237,28 @@
       return entryType(entry) === "work";
     }
 
+    function entryMetrics(entry) {
+      if (!isWorkEntry(entry) || !isComplete(entry)) {
+        return { gross: 0, deduction: 0, net: 0, complete: false };
+      }
+      try {
+        return calculate({
+          type: "work",
+          kommt1: entry.kommt1 || "",
+          geht1: entry.geht1 || "",
+          kommt2: entry.kommt2 || "",
+          geht2: entry.geht2 || ""
+        });
+      } catch (error) {
+        return {
+          gross: Number(entry.gross) || 0,
+          deduction: Number(entry.deduction) || 0,
+          net: Number(entry.net) || 0,
+          complete: isComplete(entry)
+        };
+      }
+    }
+
     function typeLabel(type) {
       if (type === "vacation") return "Urlaub";
       if (type === "flex") return "Gleittag";
@@ -1346,8 +1368,7 @@
       const workDays = new Set(completeEntries.map((entry) => entry.date)).size;
       const vacationDays = new Set(monthEntries.filter((entry) => entryType(entry) === "vacation").map((entry) => entry.date)).size;
       const flexDays = new Set(monthEntries.filter((entry) => entryType(entry) === "flex").map((entry) => entry.date)).size;
-      const netTotal = round2(completeEntries.reduce((sum, entry) => sum + (Number(entry.net) || 0), 0));
-      const avg = workDays ? round2(netTotal / workDays) : 0;
+      const netTotal = round2(completeEntries.reduce((sum, entry) => sum + entryMetrics(entry).net, 0));
 
       monthOverview.innerHTML = `
         <div class="overview-item"><span>Netto Monat</span><strong>${formatNumber(netTotal)} h</strong></div>
@@ -1464,7 +1485,10 @@
         return;
       }
 
-      const rows = sorted.map((entry) => `
+      const rows = sorted.map((entry) => {
+        const metrics = entryMetrics(entry);
+        const complete = isWorkEntry(entry) && metrics.complete;
+        return `
           <tr>
             <td class="date-cell">${formatDate(entry.date)}</td>
             <td><span class="type-badge ${typeBadgeClass(entryType(entry))}">${typeLabel(entryType(entry))}</span></td>
@@ -1472,9 +1496,9 @@
             <td class="time-cell">${isWorkEntry(entry) ? entry.geht1 || '<span class="status-open">offen</span>' : "-"}</td>
             <td class="time-cell">${isWorkEntry(entry) ? entry.kommt2 || "-" : "-"}</td>
             <td class="time-cell">${isWorkEntry(entry) ? entry.geht2 || "-" : "-"}</td>
-            <td class="number-cell">${isWorkEntry(entry) && isComplete(entry) ? formatNumber(entry.gross) : "-"}</td>
-            <td class="number-cell">${isWorkEntry(entry) && isComplete(entry) ? formatNumber(entry.deduction) : "-"}</td>
-            <td class="net-cell">${isWorkEntry(entry) && isComplete(entry) ? `<span class="net-badge ${entry.net >= 10 ? "netto-high" : ""}">${formatNumber(entry.net)}</span>` : "-"}</td>
+            <td class="number-cell">${complete ? formatNumber(metrics.gross) : "-"}</td>
+            <td class="number-cell">${complete ? formatNumber(metrics.deduction) : "-"}</td>
+            <td class="net-cell">${complete ? `<span class="net-badge ${metrics.net >= 10 ? "netto-high" : ""}">${formatNumber(metrics.net)}</span>` : "-"}</td>
             <td>
               <div class="row-actions">
                 <button class="icon-btn" type="button" data-edit="${entry.id}" title="Eintrag bearbeiten">✎</button>
@@ -1482,7 +1506,8 @@
               </div>
             </td>
           </tr>
-        `).join("");
+        `;
+      }).join("");
 
       tableWrap.innerHTML = `
         <table>
@@ -1541,7 +1566,8 @@
 
       const header = ["DATUM", "ART", "KOMMT", "GEHT", "KOMMT", "GEHT", "GESAMT ANWESENHEIT", "ABGEZOGEN", "NETTO"];
       const lines = exportEntries.map((entry) => {
-        const complete = isWorkEntry(entry) && isComplete(entry);
+        const metrics = entryMetrics(entry);
+        const complete = isWorkEntry(entry) && metrics.complete;
         return [
           formatDate(entry.date),
           typeLabel(entryType(entry)),
@@ -1549,16 +1575,16 @@
           isWorkEntry(entry) ? entry.geht1 || "" : "",
           isWorkEntry(entry) ? entry.kommt2 || "" : "",
           isWorkEntry(entry) ? entry.geht2 || "" : "",
-          complete ? formatNumber(entry.gross) : "",
-          complete ? formatNumber(entry.deduction) : "",
-          complete ? formatNumber(entry.net) : ""
+          complete ? formatNumber(metrics.gross) : "",
+          complete ? formatNumber(metrics.deduction) : "",
+          complete ? formatNumber(metrics.net) : ""
         ];
       });
 
       const completeEntries = exportEntries.filter((entry) => isWorkEntry(entry) && isComplete(entry));
-      const grossTotal = round2(completeEntries.reduce((sum, entry) => sum + (Number(entry.gross) || 0), 0));
-      const deductionTotal = round2(completeEntries.reduce((sum, entry) => sum + (Number(entry.deduction) || 0), 0));
-      const netTotal = round2(completeEntries.reduce((sum, entry) => sum + (Number(entry.net) || 0), 0));
+      const grossTotal = round2(completeEntries.reduce((sum, entry) => sum + entryMetrics(entry).gross, 0));
+      const deductionTotal = round2(completeEntries.reduce((sum, entry) => sum + entryMetrics(entry).deduction, 0));
+      const netTotal = round2(completeEntries.reduce((sum, entry) => sum + entryMetrics(entry).net, 0));
       lines.push(["SUMME", "", "", "", "", "", formatNumber(grossTotal), formatNumber(deductionTotal), formatNumber(netTotal)]);
 
       const csv = [header, ...lines]
