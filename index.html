@@ -189,18 +189,6 @@
       font-weight: 800;
     }
 
-    .build-badge {
-      display: inline-flex;
-      margin-top: 8px;
-      border: 1px solid #bfdbfe;
-      border-radius: 999px;
-      background: #eff6ff;
-      color: #1d4ed8;
-      padding: 4px 9px;
-      font-size: 0.78rem;
-      font-weight: 900;
-    }
-
     .layout {
       display: grid;
       grid-template-columns: minmax(300px, 410px) minmax(0, 1fr);
@@ -838,9 +826,9 @@
   <section class="login-screen" id="authScreen">
     <div class="auth-card">
       <h1>Zeiterfassung</h1>
-      <p id="authIntro">Melde dich an, um deine Cloud-Daten auf mehreren Geraeten zu sehen.</p>
+      <p id="authIntro">Melde dich an, um deine Cloud-Daten auf mehreren Geräten zu sehen.</p>
       <div class="error" id="fileProtocolWarning">
-        Die App wurde als Datei geoeffnet. Konto/Login funktioniert nur ueber https://jorgepnt-design.github.io/zeiterfassung/ oder localhost.
+        Die App wurde als Datei geöffnet. Konto/Login funktioniert nur über https://jorgepnt-design.github.io/zeiterfassung/ oder localhost.
       </div>
 
       <form class="auth-form" id="loginForm">
@@ -870,14 +858,13 @@
       <div>
         <h1>Zeiterfassung</h1>
         <p class="subtitle">Arbeitszeiten eintragen, Pausenabzug berechnen und als Excel-kompatible CSV exportieren.</p>
-        <div class="build-badge">Build 2026-07-09-1258 - Einzelblock-Pause korrigiert</div>
       </div>
       <div class="toolbar">
-        <div class="build-info" id="buildInfo">Build 2026-07-09-1258</div>
+        <div class="build-info" id="buildInfo">Build 2026-07-09-1306</div>
         <div class="userbar" id="userBar"></div>
         <button class="btn btn-secondary" id="exportBtn" type="button" title="CSV herunterladen">Export CSV</button>
         <button class="btn btn-secondary" id="logoutBtn" type="button" title="Abmelden">Abmelden</button>
-        <button class="btn btn-danger" id="clearBtn" type="button" title="Alle EintrÃ¤ge lÃ¶schen">Alles lÃ¶schen</button>
+        <button class="btn btn-danger" id="clearBtn" type="button" title="Alle Einträge löschen">Alles löschen</button>
       </div>
     </header>
 
@@ -957,7 +944,7 @@
 
           <div class="actions">
             <button class="btn btn-primary" type="submit" id="saveBtn">Eintragen</button>
-            <button class="btn btn-secondary" type="button" id="resetBtn">ZurÃ¼cksetzen</button>
+            <button class="btn btn-secondary" type="button" id="resetBtn">Zurücksetzen</button>
           </div>
         </form>
       </section>
@@ -965,8 +952,8 @@
       <section class="panel table-panel">
         <div class="table-head">
           <div>
-            <h2>EintrÃ¤ge</h2>
-            <p id="entryCount">Keine EintrÃ¤ge gespeichert</p>
+            <h2>Einträge</h2>
+            <p id="entryCount">Keine Einträge gespeichert</p>
           </div>
           <div class="table-controls">
             <div class="field">
@@ -1149,7 +1136,7 @@
         throw new Error("Die erste Geht-Zeit muss nach der ersten Kommt-Zeit liegen.");
       }
       if ((values.kommt2 && !values.geht2) || (!values.kommt2 && values.geht2)) {
-        throw new Error("Bitte den zweiten Zeitblock vollstÃ¤ndig ausfÃ¼llen oder beide Felder leer lassen.");
+        throw new Error("Bitte den zweiten Zeitblock vollständig ausfüllen oder beide Felder leer lassen.");
       }
       if (values.kommt2 && values.geht2 && end2 <= start2) {
         throw new Error("Die zweite Geht-Zeit muss nach der zweiten Kommt-Zeit liegen.");
@@ -1227,7 +1214,7 @@
         }
       }
       if (!days.length) {
-        throw new Error("Im gewaehlten Zeitraum liegen keine Arbeitstage von Montag bis Freitag.");
+        throw new Error("Im gewählten Zeitraum liegen keine Arbeitstage von Montag bis Freitag.");
       }
       return days;
     }
@@ -1531,7 +1518,7 @@
       updateMonthOptions();
       const monthEntries = getMonthEntries();
       const sorted = [...monthEntries].sort((a, b) => a.date.localeCompare(b.date) || sortValue(a).localeCompare(sortValue(b)));
-      entryCount.textContent = monthEntries.length === 1 ? "1 Eintrag im Monat" : `${monthEntries.length} EintrÃ¤ge im Monat`;
+      entryCount.textContent = monthEntries.length === 1 ? "1 Eintrag im Monat" : `${monthEntries.length} Einträge im Monat`;
       renderMonthOverview(monthEntries);
       renderMonthCalendar(monthEntries);
       renderOpenBanner(monthEntries);
@@ -1558,7 +1545,7 @@
             <td>
               <div class="row-actions">
                 <button class="icon-btn" type="button" data-edit="${entry.id}" title="Eintrag bearbeiten">Edit</button>
-                <button class="icon-btn" type="button" data-delete="${entry.id}" title="Eintrag loeschen">X</button>
+                <button class="icon-btn" type="button" data-delete="${entry.id}" title="Eintrag löschen">X</button>
               </div>
             </td>
           </tr>
@@ -1607,7 +1594,7 @@
     async function deleteEntry(id) {
       const entry = entries.find((item) => item.id === id);
       if (!entry) return;
-      if (!confirm(`Eintrag vom ${formatDate(entry.date)} lÃ¶schen?`)) return;
+      if (!confirm(`Eintrag vom ${formatDate(entry.date)} löschen?`)) return;
       if (!currentUser) return;
       await entriesCollection().doc(id).delete();
       if (fields.id.value === id) resetForm();
@@ -1616,7 +1603,7 @@
     function exportCsv() {
       const exportEntries = getMonthEntries().sort((a, b) => a.date.localeCompare(b.date) || sortValue(a).localeCompare(sortValue(b)));
       if (!exportEntries.length) {
-        showError("Es gibt fÃ¼r den ausgewÃ¤hlten Monat noch keine EintrÃ¤ge fÃ¼r den Export.");
+        showError("Es gibt für den ausgewählten Monat noch keine Einträge für den Export.");
         return;
       }
 
@@ -1659,7 +1646,7 @@
     }
 
     async function loadCloudState(user) {
-      debug(`lade Cloud-Daten fuer ${user.email || user.uid}`);
+      debug(`lade Cloud-Daten für ${user.email || user.uid}`);
       storageMode = "cloud";
       currentUser = user;
       await migrateLocalEntries();
@@ -1674,7 +1661,7 @@
         setAuthMessage("Bitte E-Mail und Passwort eingeben.", "error");
         return;
       }
-      setAuthMessage("Anmeldung laeuft...");
+      setAuthMessage("Anmeldung läuft...");
       debug(`Login startet: ${email}`);
       const credential = await auth.signInWithEmailAndPassword(email, password);
       setAuthMessage("Angemeldet. Daten werden geladen...");
@@ -1704,14 +1691,14 @@
         return;
       }
       await auth.sendPasswordResetEmail(email);
-      setAuthMessage("Reset-Mail wurde gesendet. Bitte Postfach pruefen.", "success");
+      setAuthMessage("Reset-Mail wurde gesendet. Bitte Postfach prüfen.", "success");
     }
 
     function handleAuthError(error) {
       const code = error.code || "";
       debug(`FEHLER ${code || "ohne code"}: ${error.message || String(error)}`);
       if (code === "auth/unauthorized-domain") {
-        setAuthMessage("Diese Adresse ist in Firebase Auth nicht freigeschaltet. Oeffne die App ueber GitHub Pages oder localhost, nicht als file:// Datei.", "error");
+        setAuthMessage("Diese Adresse ist in Firebase Auth nicht freigeschaltet. Öffne die App über GitHub Pages oder localhost, nicht als file:// Datei.", "error");
         return;
       }
       setAuthMessage(error.message || String(error), "error");
@@ -1721,7 +1708,7 @@
       event.preventDefault();
       const values = collectValues();
       if (!values.date) {
-        showError("Bitte ein Datum auswÃ¤hlen.");
+        showError("Bitte ein Datum auswählen.");
         return;
       }
 
@@ -1823,7 +1810,7 @@
     });
     document.getElementById("clearBtn").addEventListener("click", async () => {
       if (!entries.length) return;
-      if (!confirm("Alle Zeiterfassungs-EintrÃ¤ge lÃ¶schen?")) return;
+      if (!confirm("Alle Zeiterfassungs-Einträge löschen?")) return;
       if (!currentUser) return;
       const batch = db.batch();
       entries.forEach((entry) => batch.delete(entriesCollection().doc(entry.id)));
