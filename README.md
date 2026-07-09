@@ -22,7 +22,7 @@ Statische Web-App zur Arbeitszeiterfassung auf Basis des bisherigen Excel-Makros
 
 - Einzelner Arbeitsblock ueber 6 Stunden wird auf maximal 6,00 Netto-Stunden begrenzt.
 - Bei zwei Arbeitsbloecken wird die tatsaechliche Pause gegen eine 45-Minuten-Pausenbewertung gerechnet.
-- Bei einer ersten Geht-Zeit ab 14:00 und weniger als 30 Minuten Pause werden 30 Minuten abgezogen.
+- Wenn der erste Block ueber 6 Stunden dauert und ab 14:00 endet, werden mindestens 30 Minuten bewertet.
 - Der Abzug reduziert kurze Tage nicht unter 6,00 Netto-Stunden.
 
 ## Nutzung

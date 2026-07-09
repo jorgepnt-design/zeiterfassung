@@ -1149,8 +1149,8 @@
         const maxDeductionUntilSixHours = grossMinutes - 6 * 60;
         if (!hasSecondBlock) {
           missingBreakMinutes = maxDeductionUntilSixHours;
-        } else if (end1 >= 14 * 60 && actualBreakMinutes < 30) {
-          missingBreakMinutes = Math.min(30, maxDeductionUntilSixHours);
+        } else if (blockMinutes1 > 6 * 60 && end1 >= 14 * 60) {
+          missingBreakMinutes = Math.min(Math.max(30, 45 - actualBreakMinutes), maxDeductionUntilSixHours);
         } else {
           missingBreakMinutes = Math.min(Math.max(0, 45 - actualBreakMinutes), maxDeductionUntilSixHours);
         }
