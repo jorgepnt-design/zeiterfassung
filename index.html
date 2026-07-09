@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
@@ -869,14 +869,14 @@
       <div>
         <h1>Zeiterfassung</h1>
         <p class="subtitle">Arbeitszeiten eintragen, Pausenabzug berechnen und als Excel-kompatible CSV exportieren.</p>
-        <div class="build-badge">Build 2026-07-09-1245 - Zeitberechnung korrigiert</div>
+        <div class="build-badge">Build 2026-07-09-1250 - Einzelblock ueber 9h korrigiert</div>
       </div>
       <div class="toolbar">
-        <div class="build-info" id="buildInfo">Build 2026-07-09-1245</div>
+        <div class="build-info" id="buildInfo">Build 2026-07-09-1250</div>
         <div class="userbar" id="userBar"></div>
         <button class="btn btn-secondary" id="exportBtn" type="button" title="CSV herunterladen">Export CSV</button>
         <button class="btn btn-secondary" id="logoutBtn" type="button" title="Abmelden">Abmelden</button>
-        <button class="btn btn-danger" id="clearBtn" type="button" title="Alle Einträge löschen">Alles löschen</button>
+        <button class="btn btn-danger" id="clearBtn" type="button" title="Alle EintrÃ¤ge lÃ¶schen">Alles lÃ¶schen</button>
       </div>
     </header>
 
@@ -956,7 +956,7 @@
 
           <div class="actions">
             <button class="btn btn-primary" type="submit" id="saveBtn">Eintragen</button>
-            <button class="btn btn-secondary" type="button" id="resetBtn">Zurücksetzen</button>
+            <button class="btn btn-secondary" type="button" id="resetBtn">ZurÃ¼cksetzen</button>
           </div>
         </form>
       </section>
@@ -964,8 +964,8 @@
       <section class="panel table-panel">
         <div class="table-head">
           <div>
-            <h2>Einträge</h2>
-            <p id="entryCount">Keine Einträge gespeichert</p>
+            <h2>EintrÃ¤ge</h2>
+            <p id="entryCount">Keine EintrÃ¤ge gespeichert</p>
           </div>
           <div class="table-controls">
             <div class="field">
@@ -1148,7 +1148,7 @@
         throw new Error("Die erste Geht-Zeit muss nach der ersten Kommt-Zeit liegen.");
       }
       if ((values.kommt2 && !values.geht2) || (!values.kommt2 && values.geht2)) {
-        throw new Error("Bitte den zweiten Zeitblock vollständig ausfüllen oder beide Felder leer lassen.");
+        throw new Error("Bitte den zweiten Zeitblock vollstÃ¤ndig ausfÃ¼llen oder beide Felder leer lassen.");
       }
       if (values.kommt2 && values.geht2 && end2 <= start2) {
         throw new Error("Die zweite Geht-Zeit muss nach der zweiten Kommt-Zeit liegen.");
@@ -1168,7 +1168,7 @@
       if (grossMinutes > 6 * 60) {
         const maxDeductionUntilSixHours = grossMinutes - 6 * 60;
         if (!hasSecondBlock) {
-          missingBreakMinutes = maxDeductionUntilSixHours;
+          missingBreakMinutes = grossMinutes > 9 * 60 ? 45 : maxDeductionUntilSixHours;
         } else if (blockMinutes1 > 6 * 60 && end1 >= 14 * 60) {
           missingBreakMinutes = Math.min(Math.max(30, 45 - actualBreakMinutes), maxDeductionUntilSixHours);
         } else {
@@ -1530,7 +1530,7 @@
       updateMonthOptions();
       const monthEntries = getMonthEntries();
       const sorted = [...monthEntries].sort((a, b) => a.date.localeCompare(b.date) || sortValue(a).localeCompare(sortValue(b)));
-      entryCount.textContent = monthEntries.length === 1 ? "1 Eintrag im Monat" : `${monthEntries.length} Einträge im Monat`;
+      entryCount.textContent = monthEntries.length === 1 ? "1 Eintrag im Monat" : `${monthEntries.length} EintrÃ¤ge im Monat`;
       renderMonthOverview(monthEntries);
       renderMonthCalendar(monthEntries);
       renderOpenBanner(monthEntries);
@@ -1556,8 +1556,8 @@
             <td class="net-cell">${complete ? `<span class="net-badge ${metrics.net >= 10 ? "netto-high" : ""}">${formatNumber(metrics.net)}</span>` : "-"}</td>
             <td>
               <div class="row-actions">
-                <button class="icon-btn" type="button" data-edit="${entry.id}" title="Eintrag bearbeiten">✎</button>
-                <button class="icon-btn" type="button" data-delete="${entry.id}" title="Eintrag löschen">×</button>
+                <button class="icon-btn" type="button" data-edit="${entry.id}" title="Eintrag bearbeiten">âœŽ</button>
+                <button class="icon-btn" type="button" data-delete="${entry.id}" title="Eintrag lÃ¶schen">Ã—</button>
               </div>
             </td>
           </tr>
@@ -1606,7 +1606,7 @@
     async function deleteEntry(id) {
       const entry = entries.find((item) => item.id === id);
       if (!entry) return;
-      if (!confirm(`Eintrag vom ${formatDate(entry.date)} löschen?`)) return;
+      if (!confirm(`Eintrag vom ${formatDate(entry.date)} lÃ¶schen?`)) return;
       if (!currentUser) return;
       await entriesCollection().doc(id).delete();
       if (fields.id.value === id) resetForm();
@@ -1615,7 +1615,7 @@
     function exportCsv() {
       const exportEntries = getMonthEntries().sort((a, b) => a.date.localeCompare(b.date) || sortValue(a).localeCompare(sortValue(b)));
       if (!exportEntries.length) {
-        showError("Es gibt für den ausgewählten Monat noch keine Einträge für den Export.");
+        showError("Es gibt fÃ¼r den ausgewÃ¤hlten Monat noch keine EintrÃ¤ge fÃ¼r den Export.");
         return;
       }
 
@@ -1720,7 +1720,7 @@
       event.preventDefault();
       const values = collectValues();
       if (!values.date) {
-        showError("Bitte ein Datum auswählen.");
+        showError("Bitte ein Datum auswÃ¤hlen.");
         return;
       }
 
@@ -1822,7 +1822,7 @@
     });
     document.getElementById("clearBtn").addEventListener("click", async () => {
       if (!entries.length) return;
-      if (!confirm("Alle Zeiterfassungs-Einträge löschen?")) return;
+      if (!confirm("Alle Zeiterfassungs-EintrÃ¤ge lÃ¶schen?")) return;
       if (!currentUser) return;
       const batch = db.batch();
       entries.forEach((entry) => batch.delete(entriesCollection().doc(entry.id)));
