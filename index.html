@@ -735,11 +735,12 @@
     }
 
     .icon-btn {
-      width: 34px;
+      min-width: 34px;
       height: 34px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: #fff;
+      padding: 0 9px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -869,10 +870,10 @@
       <div>
         <h1>Zeiterfassung</h1>
         <p class="subtitle">Arbeitszeiten eintragen, Pausenabzug berechnen und als Excel-kompatible CSV exportieren.</p>
-        <div class="build-badge">Build 2026-07-09-1250 - Einzelblock ueber 9h korrigiert</div>
+        <div class="build-badge">Build 2026-07-09-1258 - Einzelblock-Pause korrigiert</div>
       </div>
       <div class="toolbar">
-        <div class="build-info" id="buildInfo">Build 2026-07-09-1250</div>
+        <div class="build-info" id="buildInfo">Build 2026-07-09-1258</div>
         <div class="userbar" id="userBar"></div>
         <button class="btn btn-secondary" id="exportBtn" type="button" title="CSV herunterladen">Export CSV</button>
         <button class="btn btn-secondary" id="logoutBtn" type="button" title="Abmelden">Abmelden</button>
@@ -1168,7 +1169,7 @@
       if (grossMinutes > 6 * 60) {
         const maxDeductionUntilSixHours = grossMinutes - 6 * 60;
         if (!hasSecondBlock) {
-          missingBreakMinutes = grossMinutes > 9 * 60 ? 45 : maxDeductionUntilSixHours;
+          missingBreakMinutes = grossMinutes > 9 * 60 ? 45 : Math.min(30, maxDeductionUntilSixHours);
         } else if (blockMinutes1 > 6 * 60 && end1 >= 14 * 60) {
           missingBreakMinutes = Math.min(Math.max(30, 45 - actualBreakMinutes), maxDeductionUntilSixHours);
         } else {
@@ -1556,8 +1557,8 @@
             <td class="net-cell">${complete ? `<span class="net-badge ${metrics.net >= 10 ? "netto-high" : ""}">${formatNumber(metrics.net)}</span>` : "-"}</td>
             <td>
               <div class="row-actions">
-                <button class="icon-btn" type="button" data-edit="${entry.id}" title="Eintrag bearbeiten">âœŽ</button>
-                <button class="icon-btn" type="button" data-delete="${entry.id}" title="Eintrag lÃ¶schen">Ã—</button>
+                <button class="icon-btn" type="button" data-edit="${entry.id}" title="Eintrag bearbeiten">Edit</button>
+                <button class="icon-btn" type="button" data-delete="${entry.id}" title="Eintrag loeschen">X</button>
               </div>
             </td>
           </tr>
