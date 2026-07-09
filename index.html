@@ -723,22 +723,43 @@
     }
 
     .icon-btn {
-      min-width: 34px;
+      min-width: 42px;
       height: 34px;
-      border: 1px solid var(--line);
+      border: 1px solid transparent;
       border-radius: var(--radius);
-      background: #fff;
-      padding: 0 9px;
+      padding: 0 10px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      color: var(--text);
+      font-size: 0.82rem;
+      font-weight: 900;
+      transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
     }
 
     .icon-btn:hover {
-      border-color: var(--primary);
-      color: var(--primary);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
+    }
+
+    .icon-btn.edit {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+      color: #1d4ed8;
+    }
+
+    .icon-btn.edit:hover {
+      background: #dbeafe;
+    }
+
+    .icon-btn.delete {
+      background: var(--danger-soft);
+      border-color: #f0caca;
+      color: var(--danger);
+    }
+
+    .icon-btn.delete:hover {
+      background: #fce1e1;
     }
 
     .empty {
@@ -1544,8 +1565,8 @@
             <td class="net-cell">${complete ? `<span class="net-badge ${metrics.net >= 10 ? "netto-high" : ""}">${formatNumber(metrics.net)}</span>` : "-"}</td>
             <td>
               <div class="row-actions">
-                <button class="icon-btn" type="button" data-edit="${entry.id}" title="Eintrag bearbeiten">Edit</button>
-                <button class="icon-btn" type="button" data-delete="${entry.id}" title="Eintrag löschen">X</button>
+                <button class="icon-btn edit" type="button" data-edit="${entry.id}" title="Eintrag bearbeiten">Bearb.</button>
+                <button class="icon-btn delete" type="button" data-delete="${entry.id}" title="Eintrag löschen">Löschen</button>
               </div>
             </td>
           </tr>
