@@ -189,6 +189,18 @@
       font-weight: 800;
     }
 
+    .build-badge {
+      display: inline-flex;
+      margin-top: 8px;
+      border: 1px solid #bfdbfe;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      padding: 4px 9px;
+      font-size: 0.78rem;
+      font-weight: 900;
+    }
+
     .layout {
       display: grid;
       grid-template-columns: minmax(300px, 410px) minmax(0, 1fr);
@@ -857,9 +869,10 @@
       <div>
         <h1>Zeiterfassung</h1>
         <p class="subtitle">Arbeitszeiten eintragen, Pausenabzug berechnen und als Excel-kompatible CSV exportieren.</p>
+        <div class="build-badge">Build 2026-07-09-1245 - Zeitberechnung korrigiert</div>
       </div>
       <div class="toolbar">
-        <div class="build-info" id="buildInfo">Build 2026-07-09-1238</div>
+        <div class="build-info" id="buildInfo">Build 2026-07-09-1245</div>
         <div class="userbar" id="userBar"></div>
         <button class="btn btn-secondary" id="exportBtn" type="button" title="CSV herunterladen">Export CSV</button>
         <button class="btn btn-secondary" id="logoutBtn" type="button" title="Abmelden">Abmelden</button>
