@@ -17,8 +17,26 @@
     if (!response.ok) throw new Error('App konnte nicht geladen werden.');
     let html = await response.text();
 
-    const iphonePatch = `<script>
+    const appPatch = `<script>
 (function () {
+  function styleQuickButtons() {
+    ['kommt1', 'kommt2'].forEach(function (target) {
+      var button = document.querySelector('[data-now-target="' + target + '"]');
+      if (button) {
+        button.style.background = '#eef8f0';
+        button.style.borderColor = '#cfe7d3';
+      }
+    });
+
+    ['geht1', 'geht2'].forEach(function (target) {
+      var button = document.querySelector('[data-now-target="' + target + '"]');
+      if (button) {
+        button.style.background = '#fff1f1';
+        button.style.borderColor = '#f0d0d0';
+      }
+    });
+  }
+
   function moveOpenBannerOnIPhone() {
     if (!/iPhone/i.test(navigator.userAgent)) return;
     var banner = document.getElementById('openBanner');
@@ -28,15 +46,21 @@
       banner.style.margin = '0';
     }
   }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', moveOpenBannerOnIPhone);
-  } else {
+
+  function applyEnhancements() {
+    styleQuickButtons();
     moveOpenBannerOnIPhone();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyEnhancements);
+  } else {
+    applyEnhancements();
   }
 })();
 <\/script>`;
 
-    html = html.replace('</body>', iphonePatch + '</body>');
+    html = html.replace('</body>', appPatch + '</body>');
     document.open();
     document.write(html);
     document.close();
