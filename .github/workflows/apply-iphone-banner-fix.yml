@@ -1,17 +1,16 @@
 name: Apply iPhone banner placement fix
 
 on:
-  push:
+  pull_request:
     branches:
-      - chatgpt/iphone-open-banner
-    paths:
-      - .github/workflows/apply-iphone-banner-fix.yml
+      - main
 
 permissions:
   contents: write
 
 jobs:
   patch-index:
+    if: github.head_ref == 'chatgpt/iphone-open-banner'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
