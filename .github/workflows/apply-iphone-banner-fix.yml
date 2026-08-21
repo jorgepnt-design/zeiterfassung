@@ -58,3 +58,5 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "Place open workday banner below quick buttons on iPhone"
           git push origin HEAD:main
+
+# trigger one-time patch
