@@ -1,21 +1,22 @@
 name: Apply iPhone banner placement fix
 
 on:
-  pull_request:
+  push:
     branches:
       - main
+    paths:
+      - .github/workflows/apply-iphone-banner-fix.yml
 
 permissions:
   contents: write
 
 jobs:
   patch-index:
-    if: github.head_ref == 'chatgpt/iphone-open-banner'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: chatgpt/iphone-open-banner
+          ref: main
           fetch-depth: 0
       - name: Move open-day banner below quick buttons on iPhone
         shell: python
@@ -56,4 +57,4 @@ jobs:
           git add -- index.html .github/workflows/apply-iphone-banner-fix.yml
           git diff --cached --quiet && exit 0
           git commit -m "Place open workday banner below quick buttons on iPhone"
-          git push origin HEAD:chatgpt/iphone-open-banner
+          git push origin HEAD:main
