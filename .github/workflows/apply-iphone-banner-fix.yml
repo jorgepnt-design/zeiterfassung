@@ -1,0 +1,60 @@
+name: Apply iPhone banner placement fix
+
+on:
+  push:
+    branches:
+      - chatgpt/iphone-open-banner
+    paths:
+      - .github/workflows/apply-iphone-banner-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/iphone-open-banner
+          fetch-depth: 0
+      - name: Move open-day banner below quick buttons on iPhone
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("index.html")
+          text = path.read_text(encoding="utf-8-sig")
+          marker = "iphone-open-banner-placement"
+          if marker not in text:
+              snippet = r'''
+  <script id="iphone-open-banner-placement">
+    (() => {
+      const isIPhone = /iPhone/.test(navigator.userAgent);
+      if (!isIPhone) return;
+
+      const openBanner = document.getElementById("openBanner");
+      const quickGrid = document.querySelector(".quick-grid");
+      if (!openBanner || !quickGrid) return;
+
+      quickGrid.insertAdjacentElement("afterend", openBanner);
+      openBanner.style.margin = "0";
+    })();
+  </script>
+'''
+              if "</body>" not in text:
+                  raise SystemExit("</body> not found")
+              text = text.replace("</body>", snippet + "</body>", 1)
+              path.write_text(text, encoding="utf-8")
+
+          workflow = Path(".github/workflows/apply-iphone-banner-fix.yml")
+          if workflow.exists():
+              workflow.unlink()
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- index.html .github/workflows/apply-iphone-banner-fix.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "Place open workday banner below quick buttons on iPhone"
+          git push origin HEAD:chatgpt/iphone-open-banner
