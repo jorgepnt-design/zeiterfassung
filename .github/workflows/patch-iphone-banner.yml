@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - iphone-open-banner-position
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
