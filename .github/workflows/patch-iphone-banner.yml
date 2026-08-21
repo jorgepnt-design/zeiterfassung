@@ -1,0 +1,157 @@
+name: Patch iPhone open banner
+
+on:
+  push:
+    branches:
+      - iphone-open-banner-position
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: iphone-open-banner-position
+
+      - name: Move open-day banner for iPhone
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8-sig')
+
+          old = '''    .open-banner.visible {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+'''
+          new = old + '''
+    .mobile-open-banner {
+      display: none !important;
+    }
+'''
+          assert old in s, 'open-banner CSS block not found'
+          s = s.replace(old, new, 1)
+
+          old = '''    @media (max-width: 520px) {
+      .field-grid,
+'''
+          new = '''    @media (max-width: 520px) {
+      html.is-iphone #openBanner {
+        display: none !important;
+      }
+
+      html.is-iphone .mobile-open-banner.visible {
+        display: flex !important;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 0;
+      }
+
+      .field-grid,
+'''
+          assert old in s, 'mobile media query not found'
+          s = s.replace(old, new, 1)
+
+          old = '''              <button class="btn btn-secondary" type="button" data-now-target="kommt2">Jetzt 2. Kommt</button>
+              <button class="btn btn-secondary" type="button" data-now-target="geht2">Jetzt 2. Geht</button>
+            </div>
+
+            <div class="field-grid">'''
+          new = '''              <button class="btn btn-secondary" type="button" data-now-target="kommt2">Jetzt 2. Kommt</button>
+              <button class="btn btn-secondary" type="button" data-now-target="geht2">Jetzt 2. Geht</button>
+            </div>
+
+            <div class="open-banner mobile-open-banner" id="mobileOpenBanner"></div>
+
+            <div class="field-grid">'''
+          assert old in s, 'quick buttons block not found'
+          s = s.replace(old, new, 1)
+
+          old = '''    const monthCalendar = document.getElementById("monthCalendar");
+    const openBanner = document.getElementById("openBanner");
+    const formTitle = document.getElementById("formTitle");'''
+          new = '''    const monthCalendar = document.getElementById("monthCalendar");
+    const openBanner = document.getElementById("openBanner");
+    const mobileOpenBanner = document.getElementById("mobileOpenBanner");
+    document.documentElement.classList.toggle("is-iphone", /iPhone/i.test(navigator.userAgent));
+    const formTitle = document.getElementById("formTitle");'''
+          assert old in s, 'openBanner const block not found'
+          s = s.replace(old, new, 1)
+
+          old = '''    function renderOpenBanner(monthEntries) {
+      const openEntry = [...monthEntries]
+        .filter((entry) => isWorkEntry(entry) && entry.kommt1 && !entry.geht1)
+        .sort((a, b) => a.date.localeCompare(b.date) || sortValue(a).localeCompare(sortValue(b)))[0];
+      if (!openEntry) {
+        openBanner.classList.remove("visible");
+        openBanner.innerHTML = "";
+        return;
+      }
+      openBanner.innerHTML = `
+        <span>Offener Arbeitstag seit ${openEntry.kommt1} (${formatDate(openEntry.date)})</span>
+        <button class="link-btn" type="button" data-open-edit="${openEntry.id}">Bearbeiten</button>
+      `;
+      openBanner.classList.add("visible");
+    }
+'''
+          new = '''    function renderOpenBanner(monthEntries) {
+      const banners = [openBanner, mobileOpenBanner].filter(Boolean);
+      const openEntry = [...monthEntries]
+        .filter((entry) => isWorkEntry(entry) && entry.kommt1 && !entry.geht1)
+        .sort((a, b) => a.date.localeCompare(b.date) || sortValue(a).localeCompare(sortValue(b)))[0];
+      if (!openEntry) {
+        banners.forEach((banner) => {
+          banner.classList.remove("visible");
+          banner.innerHTML = "";
+        });
+        return;
+      }
+      const content = `
+        <span>Offener Arbeitstag seit ${openEntry.kommt1} (${formatDate(openEntry.date)})</span>
+        <button class="link-btn" type="button" data-open-edit="${openEntry.id}">Bearbeiten</button>
+      `;
+      banners.forEach((banner) => {
+        banner.innerHTML = content;
+        banner.classList.add("visible");
+      });
+    }
+'''
+          assert old in s, 'renderOpenBanner function not found'
+          s = s.replace(old, new, 1)
+
+          old = '''    openBanner.addEventListener("click", (event) => {
+      const id = event.target.dataset.openEdit;
+      if (id) editEntry(id);
+    });
+
+    monthFilter.addEventListener("change", () => {'''
+          new = '''    [openBanner, mobileOpenBanner].filter(Boolean).forEach((banner) => {
+      banner.addEventListener("click", (event) => {
+        const id = event.target.dataset.openEdit;
+        if (id) editEntry(id);
+      });
+    });
+
+    monthFilter.addEventListener("change", () => {'''
+          assert old in s, 'openBanner listener not found'
+          s = s.replace(old, new, 1)
+
+          p.write_text(s, encoding='utf-8')
+
+      - name: Commit patch
+        run: |
+          rm .github/workflows/patch-iphone-banner.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- index.html .github/workflows/patch-iphone-banner.yml
+          git commit -m "Position open workday banner below quick buttons on iPhone"
+          git push origin iphone-open-banner-position
